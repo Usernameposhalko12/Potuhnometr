@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚠️ ПОТУЖНОМЕТР</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --safe: #00ff88;
+    --discipline: #88ff00;
+    --yellow: #ffee00;
+    --orange: #ff8800;
+    --red: #ff2200;
+    --black: #220000;
+    --deadly: #000000;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    background: #111;
+    border-bottom: 2px solid #333;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .tab-btn.active { color: #00ff88; border-bottom: 2px solid #00ff88; }
+  .tab-btn:hover { background: #1a1a1a; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ===== MAIN METER ===== */
+  #meter-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: calc(100vh - 50px);
+  }
+
+  .meter-title {
+    font-size: 22px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #00ff88;
+    text-shadow: 0 0 20px #00ff88;
+    margin-bottom: 5px;
+    animation: titlePulse 2s infinite;
+  }
+  @keyframes titlePulse {
+    0%,100% { text-shadow: 0 0 10px #00ff88; }
+    50% { text-shadow: 0 0 30px #00ff88, 0 0 60px #00ff44; }
+  }
+
+  .subtitle { color: #555; font-size: 11px; letter-spacing: 3px; margin-bottom: 20px; }
+
+  /* Gauge */
+  .gauge-wrap {
+    position: relative;
+    width: 320px;
+    height: 190px;
+    margin-bottom: 10px;
+  }
+  .gauge-svg { width: 100%; height: 100%; }
+  .gauge-value-display {
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .gauge-num {
+    font-size: 36px;
+    font-weight: bold;
+    color: #00ff88;
+    text-shadow: 0 0 20px currentColor;
+    transition: color 0.5s;
+  }
+  .gauge-unit { font-size: 11px; color: #888; letter-spacing: 1px; }
+
+  /* Level indicator */
+  .level-badge {
+    padding: 8px 30px;
+    border-radius: 4px;
+    font-size: 15px;
+    letter-spacing: 3px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 10px 0;
+    border: 2px solid currentColor;
+    transition: all 0.3s;
+    min-width: 260px;
+    text-align: center;
+  }
+
+  /* Digital readout */
+  .digital-panel {
+    background: #050510;
+    border: 1px solid #1a3a1a;
+    border-radius: 8px;
+    padding: 12px 20px;
+    width: 100%;
+    max-width: 380px;
+    margin: 10px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .dig-item { display: flex; flex-direction: column; }
+  .dig-label { font-size: 9px; color: #555; letter-spacing: 2px; text-transform: uppercase; }
+  .dig-val { font-size: 18px; color: #00ff88; font-weight: bold; }
+  .dig-val.alt { color: #88aaff; }
+
+  /* Ticker tape */
+  .ticker-wrap {
+    width: 100%; max-width: 380px;
+    background: #050510;
+    border: 1px solid #1a3a1a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    height: 80px;
+    overflow-y: auto;
+    margin: 8px 0;
+    font-size: 11px;
+    color: #00aa44;
+  }
+  .ticker-line { padding: 1px 0; border-bottom: 1px solid #0a1a0a; }
+  .ticker-line.warn { color: #ffaa00; }
+  .ticker-line.danger { color: #ff4400; }
+  .ticker-line.deadly { color: #ff0000; font-weight: bold; }
+
+  /* Check button */
+  .check-btn {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #1a3a1a, #050a05);
+    border: 4px solid #00ff88;
+    color: #00ff88;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 0 20px #00ff8833, inset 0 0 20px #00ff8811;
+    transition: all 0.2s;
+    margin: 10px 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .check-btn:active, .check-btn.pressing {
+    box-shadow: 0 0 40px #00ff8866, inset 0 0 30px #00ff8833;
+    transform: scale(0.97);
+  }
+  .btn-inner { display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+  .btn-icon { font-size: 32px; }
+  .btn-label { font-size: 11px; }
+  .btn-hold { font-size: 9px; color: #558855; }
+
+  /* Progress ring */
+  .progress-ring {
+    position: absolute; top: -8px; left: -8px;
+    width: calc(100% + 16px); height: calc(100% + 16px);
+    transform: rotate(-90deg);
+    pointer-events: none;
+  }
+  .progress-ring circle {
+    fill: none; stroke: #00ff88; stroke-width: 3;
+    stroke-dasharray: 565;
+    stroke-dashoffset: 565;
+    transition: stroke-dashoffset 0.1s linear;
+    opacity: 0.6;
+  }
+
+  /* Location badge */
+  .loc-badge {
+    font-size: 10px;
+    color: #445544;
+    letter-spacing: 1px;
+    margin-top: 5px;
+    cursor: pointer;
+  }
+  .loc-badge:hover { color: #00ff88; }
+
+  /* Flash overlay */
+  #flash-overlay {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  /* ===== COLOR THEMES ===== */
+  body.level-safe { --accent: #00ff88; }
+  body.level-discipline { --accent: #88ff00; }
+  body.level-yellow { --accent: #ffee00; }
+  body.level-orange { --accent: #ff8800; }
+  body.level-red { --accent: #ff2200; }
+  body.level-black { --accent: #aa0000; }
+  body.level-deadly { --accent: #ff0000; }
+
+  /* ===== ADMIN PAGE ===== */
+  #admin-page { padding: 16px; min-height: calc(100vh - 50px); }
+  .admin-title {
+    color: #ff8800; font-size: 16px; letter-spacing: 4px;
+    text-transform: uppercase; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .admin-lock { font-size: 20px; }
+  
+  .admin-login { max-width: 320px; margin: 40px auto; }
+  .admin-login input {
+    width: 100%; padding: 10px; background: #111; border: 1px solid #333;
+    color: #e0e0e0; font-family: monospace; border-radius: 4px;
+    margin-bottom: 10px; font-size: 14px;
+  }
+  .admin-login button {
+    width: 100%; padding: 10px; background: #1a3a1a; border: 1px solid #00ff88;
+    color: #00ff88; font-family: monospace; cursor: pointer; border-radius: 4px;
+    font-size: 14px; letter-spacing: 2px;
+  }
+
+  #map { width: 100%; height: 380px; border-radius: 8px; border: 1px solid #333; }
+
+  .zone-controls {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0;
+    align-items: center;
+  }
+  .zone-controls select, .zone-controls input {
+    background: #111; border: 1px solid #333; color: #e0e0e0;
+    font-family: monospace; padding: 6px 10px; border-radius: 4px;
+    font-size: 13px;
+  }
+  .zone-controls button {
+    padding: 6px 14px; background: #1a1a3a; border: 1px solid #4466ff;
+    color: #4466ff; font-family: monospace; cursor: pointer; border-radius: 4px;
+    font-size: 12px; letter-spacing: 1px;
+  }
+  .zone-controls button:hover { background: #22224a; }
+  .zone-controls button.danger-btn {
+    border-color: #ff4400; color: #ff4400; background: #1a0a0a;
+  }
+
+  .zones-list {
+    background: #050510; border: 1px solid #1a1a3a; border-radius: 8px;
+    padding: 10px; max-height: 200px; overflow-y: auto; margin-top: 10px;
+  }
+  .zone-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px; border-bottom: 1px solid #1a1a2a; font-size: 12px;
+  }
+  .zone-item:last-child { border-bottom: none; }
+  .zone-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+  .zone-name { flex: 1; }
+  .zone-level-tag { padding: 2px 8px; border-radius: 3px; font-size: 10px; margin-right: 8px; }
+  .zone-del { background: none; border: 1px solid #aa2200; color: #aa2200;
+    cursor: pointer; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+
+  .hint { color: #555; font-size: 11px; letter-spacing: 1px; margin: 6px 0; }
+
+  /* Scan animation */
+  @keyframes scanLine {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  .scan-line {
+    position: fixed; left: 0; right: 0; height: 2px;
+    background: linear-gradient(transparent, #00ff8844, transparent);
+    pointer-events: none; z-index: 100;
+    animation: scanLine 3s linear infinite;
+    display: none;
+  }
+  body.scanning .scan-line { display: block; }
+
+  /* Shake */
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-4px) rotate(-0.5deg); }
+    40% { transform: translateX(4px) rotate(0.5deg); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+  .shaking { animation: shake 0.3s; }
+
+  @keyframes warningPulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Mobile */
+  @media (max-width: 400px) {
+    .gauge-wrap { width: 280px; height: 165px; }
+    .check-btn { width: 130px; height: 130px; }
+  }
+</style>
+</head>
+<body class="level-safe">
+
+<div class="scan-line"></div>
+<div id="flash-overlay"></div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('meter')">☢ ДОЗИМЕТР</button>
+  <button class="tab-btn" onclick="switchTab('admin')">⚙ АДМІН</button>
+</div>
+
+<!-- ====== METER TAB ====== -->
+<div id="meter-page" class="tab-content active">
+  <div class="meter-title">☢ ПОТУЖНОМЕТР</div>
+  <div class="subtitle">RADIATION POWER METER v2.0</div>
+
+  <!-- SVG Gauge -->
+  <div class="gauge-wrap">
+    <svg class="gauge-svg" viewBox="0 0 320 190">
+      <defs>
+        <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#00ff88"/>
+          <stop offset="40%" style="stop-color:#ffee00"/>
+          <stop offset="70%" style="stop-color:#ff8800"/>
+          <stop offset="100%" style="stop-color:#ff0000"/>
+        </linearGradient>
+      </defs>
+      <!-- Background arc -->
+      <path d="M 30 170 A 130 130 0 0 1 290 170" fill="none" stroke="#1a1a1a" stroke-width="18" stroke-linecap="round"/>
+      <!-- Colored arc -->
+      <path id="gauge-arc" d="M 30 170 A 130 130 0 0 1 290 170" fill="none" stroke="url(#arcGrad)" stroke-width="18" stroke-linecap="round"
+            stroke-dasharray="408" stroke-dashoffset="408" style="transition: stroke-dashoffset 0.3s ease"/>
+      <!-- Needle -->
+      <g id="gauge-needle" transform="rotate(-90 160 170)">
+        <polygon points="160,170 156,60 164,60" fill="#ff4400" opacity="0.9"/>
+        <circle cx="160" cy="170" r="8" fill="#222" stroke="#ff4400" stroke-width="2"/>
+      </g>
+      <!-- Scale ticks -->
+      <g stroke="#333" stroke-width="1" fill="#555" font-size="9" font-family="monospace" text-anchor="middle">
+        <line x1="30" y1="170" x2="38" y2="150"/>
+        <line x1="73" y1="93" x2="80" y2="108"/>
+        <line x1="160" y1="40" x2="160" y2="58"/>
+        <line x1="247" y1="93" x2="240" y2="108"/>
+        <line x1="290" y1="170" x2="282" y2="150"/>
+        <text x="25" y="145" fill="#555">0</text>
+        <text x="65" y="88" fill="#555">250</text>
+        <text x="160" y="35" fill="#555">500</text>
+        <text x="255" y="88" fill="#555">750</text>
+        <text x="295" y="145" fill="#555">15+</text>
+      </g>
+    </svg>
+    <div class="gauge-value-display">
+      <div class="gauge-num" id="gauge-num">0.00</div>
+      <div class="gauge-unit" id="gauge-unit">мкПт/год</div>
+    </div>
+  </div>
+
+  <!-- Level badge -->
+  <div class="level-badge" id="level-badge" style="color:#00ff88; border-color:#00ff88">
+    ✅ БЕЗПЕЧНИЙ РІВЕНЬ
+  </div>
+
+  <!-- Digital panel -->
+  <div class="digital-panel">
+    <div class="dig-item">
+      <span class="dig-label">мкПт/год</span>
+      <span class="dig-val" id="dig-mku">0.00</span>
+    </div>
+    <div class="dig-item">
+      <span class="dig-label">Пт/год</span>
+      <span class="dig-val alt" id="dig-pt">0.000000</span>
+    </div>
+    <div class="dig-item">
+      <span class="dig-label">Пікова доза</span>
+      <span class="dig-val" id="dig-peak" style="color:#ff8800">0.00</span>
+    </div>
+    <div class="dig-item">
+      <span class="dig-label">Зона (GPS)</span>
+      <span class="dig-val" id="dig-zone" style="color:#4466ff; font-size:12px">—</span>
+    </div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker-wrap" id="ticker">
+    <div class="ticker-line">► Система готова до вимірювання...</div>
+    <div class="ticker-line">► Утримуйте кнопку для вимірювання</div>
+  </div>
+
+  <!-- CHECK BUTTON -->
+  <button class="check-btn" id="check-btn"
+    onmousedown="startMeasure()" onmouseup="stopMeasure()" onmouseleave="stopMeasure()"
+    ontouchstart="startMeasure(event)" ontouchend="stopMeasure()">
+    <svg class="progress-ring" viewBox="0 0 184 184">
+      <circle id="progress-circle" cx="92" cy="92" r="89" style="stroke-dasharray:559; stroke-dashoffset:559;"/>
+    </svg>
+    <div class="btn-inner">
+      <span class="btn-icon">☢</span>
+      <span class="btn-label">ПЕРЕВІРКА</span>
+      <span class="btn-hold">УТРИМУЙ</span>
+    </div>
+  </button>
+
+  <div class="loc-badge" id="loc-badge" onclick="requestLocation()">📍 Натисніть для визначення місця</div>
+</div>
+
+<!-- ====== ADMIN TAB ====== -->
+<div id="admin-page" class="tab-content">
+  <div id="admin-login-screen">
+    <div class="admin-title"><span class="admin-lock">🔐</span> АДМІН-ПАНЕЛЬ</div>
+    <div class="admin-login">
+      <p class="hint">Введіть пароль для доступу до керування зонами:</p>
+      <input type="password" id="admin-pass" placeholder="Пароль..." onkeydown="if(event.key==='Enter') adminLogin()"/>
+      <button onclick="adminLogin()">УВІЙТИ</button>
+      <p class="hint" style="margin-top:10px; color:#334">Пароль за замовчуванням: <b style="color:#556">admin123</b></p>
+    </div>
+  </div>
+
+  <div id="admin-panel" style="display:none">
+    <div class="admin-title">⚙ ЗОНИ НЕБЕЗПЕКИ <span style="margin-left:auto; font-size:12px; color:#555; cursor:pointer" onclick="adminLogout()">ВИЙТИ</span></div>
+
+    <div class="zone-controls">
+      <select id="zone-shape">
+        <option value="circle">⬤ Коло</option>
+        <option value="rectangle">▬ Прямокутник</option>
+      </select>
+      <select id="zone-level-select">
+        <option value="safe">✅ Безпечний (0-10)</option>
+        <option value="discipline">🟢 Дисципліна (10-40)</option>
+        <option value="yellow">🟡 Жовтий (40-75)</option>
+        <option value="orange">🟠 Помаранч. (75-100)</option>
+        <option value="red">🔴 Червоний (100-1000)</option>
+        <option value="black">⬛ Чорний (1-15 Пт)</option>
+        <option value="deadly">💀 Смертельний (15+ Пт)</option>
+      </select>
+      <input type="text" id="zone-name-input" placeholder="Назва зони..." style="width:130px"/>
+    </div>
+    <div class="zone-controls">
+      <button onclick="startDrawing()">✏ Намалювати зону</button>
+      <button onclick="clearDrawing()" class="danger-btn">✖ Очистити</button>
+      <button onclick="saveZone()" style="border-color:#00ff88; color:#00ff88; background:#0a1a0a">💾 Зберегти</button>
+    </div>
+    <p class="hint" id="draw-hint">▶ Натисніть «Намалювати» і клікайте по карті</p>
+
+    <div id="map"></div>
+
+    <div class="zones-list" id="zones-list">
+      <div style="color:#333; font-size:12px; text-align:center; padding:20px">Зони не задані</div>
+    </div>
+
+    <div class="zone-controls" style="margin-top:10px">
+      <button onclick="requestLocation()" style="border-color:#4466ff; color:#4466ff">📍 Моя позиція</button>
+      <button onclick="exportZones()" style="border-color:#888; color:#888">📤 Експорт</button>
+      <button onclick="importZones()" style="border-color:#888; color:#888">📥 Імпорт</button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)"/>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+let currentPower = 0;
+let peakPower = 0;
+let measuring = false;
+let measureInterval = null;
+let tickInterval = null;
+let holdTime = 0;
+let audioCtx = null;
+let userLat = null, userLng = null;
+let zones = JSON.parse(localStorage.getItem('potuzhnometr_zones') || '[]');
+let zoneBoost = 0;
+let zoneName = '—';
+let lastSpokenLevel = null;
+let drawingMode = false;
+let currentDrawPoints = [];
+let currentDrawShape = null;
+let mapMarker = null;
+let leafletMap = null;
+let drawnLayers = [];
+let adminLoggedIn = false;
+
+// ========== LEVEL CONFIG ==========
+const LEVELS = [
+  { id:'safe',       max:10,     label:'✅ БЕЗПЕЧНИЙ',        color:'#00ff88', bodyClass:'level-safe',       tickRate:0.5  },
+  { id:'discipline', max:40,     label:'🟢 ДИСЦИПЛІНА',       color:'#88ff00', bodyClass:'level-discipline',  tickRate:1.5  },
+  { id:'yellow',     max:75,     label:'🟡 ПІДВИЩЕНИЙ',       color:'#ffee00', bodyClass:'level-yellow',      tickRate:3    },
+  { id:'orange',     max:100,    label:'🟠 НЕБЕЗПЕЧНИЙ',      color:'#ff8800', bodyClass:'level-orange',      tickRate:6    },
+  { id:'red',        max:1000,   label:'🔴 КРИТИЧНИЙ',        color:'#ff2200', bodyClass:'level-red',         tickRate:15   },
+  { id:'black',      max:15000,  label:'⬛ ЧОРНА ЗОНА',       color:'#cc0000', bodyClass:'level-black',       tickRate:40   },
+  { id:'deadly',     max:Infinity,label:'💀 СМЕРТЕЛЬНО',      color:'#ff0000', bodyClass:'level-deadly',      tickRate:100  },
+];
+const LEVEL_BASE_POWER = { safe:5, discipline:25, yellow:60, orange:90, red:500, black:7000, deadly:20000 };
+
+function getLevelByPower(p) {
+  for(let l of LEVELS) if(p < l.max) return l;
+  return LEVELS[LEVELS.length-1];
+}
+
+// ========== AUDIO ==========
+function initAudio() {
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playTick(intensity) {
+  initAudio();
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0; i<d.length; i++) {
+    d[i] = (Math.random()*2-1) * Math.exp(-i/(d.length*0.15)) * Math.min(intensity, 3);
+  }
+  const src = audioCtx.createBufferSource();
+  const gain = audioCtx.createGain();
+  gain.gain.value = Math.min(intensity, 1.5);
+  src.buffer = buf;
+  src.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+}
+
+function playAlarm(type) {
+  initAudio();
+  const freqs = { yellow:[880,440], orange:[1200,600,300], red:[1500,100,1500,100], deadly:[200,400,200] };
+  const seq = freqs[type] || [440];
+  let t = audioCtx.currentTime;
+  seq.forEach((f,i) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.frequency.value = f;
+    osc.type = i%2===0 ? 'sawtooth' : 'square';
+    g.gain.setValueAtTime(0.3, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t+0.3);
+    t += 0.35;
+  });
+}
+
+// Text-to-speech
+function speak(text) {
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'uk-UA';
+  u.rate = 1.1;
+  u.pitch = type==='deadly' ? 0.5 : 1;
+  window.speechSynthesis.speak(u);
+}
+
+// ========== MEASUREMENT ==========
+function startMeasure(e) {
+  if(e && e.preventDefault) e.preventDefault();
+  if(measuring) return;
+  measuring = true;
+  holdTime = 0;
+  document.getElementById('check-btn').classList.add('pressing');
+  document.body.classList.add('scanning');
+  initAudio();
+
+  addTicker('► Вимірювання розпочато...', 'normal');
+
+  measureInterval = setInterval(() => {
+    holdTime += 0.1;
+    const prog = Math.min(holdTime/8, 1);
+    document.getElementById('progress-circle').style.strokeDashoffset = 559 - (559 * prog);
+
+    // Simulate rising power
+    const baseZonePower = zoneBoost > 0 ? zoneBoost : 0;
+    const natural = Math.sin(holdTime*0.7)*2 + Math.random()*3;
+    const ramp = Math.min(holdTime/6, 1);
+    currentPower = Math.max(0.1, baseZonePower + natural + (ramp * (baseZonePower*0.2 + natural*2)));
+    currentPower += (Math.random()-0.3) * currentPower * 0.1;
+    if(currentPower > peakPower) peakPower = currentPower;
+
+    updateDisplay();
+    scheduleTickSound();
+  }, 100);
+}
+
+function stopMeasure() {
+  if(!measuring) return;
+  measuring = false;
+  clearInterval(measureInterval);
+  clearInterval(tickInterval);
+  document.getElementById('check-btn').classList.remove('pressing');
+  document.body.classList.remove('scanning');
+  document.getElementById('progress-circle').style.strokeDashoffset = 559;
+
+  addTicker(`◼ Вимірювання завершено. Результат: ${currentPower.toFixed(2)} мкПт/год`, 'normal');
+
+  // Decay
+  let decay = setInterval(() => {
+    currentPower *= 0.85;
+    if(currentPower < 0.05) { currentPower = 0; clearInterval(decay); }
+    updateDisplay();
+  }, 200);
+}
+
+let lastTickTime = 0;
+function scheduleTickSound() {
+  const level = getLevelByPower(currentPower);
+  const interval = 1000 / level.tickRate;
+  const now = Date.now();
+  if(now - lastTickTime > interval) {
+    lastTickTime = now;
+    playTick(Math.min(currentPower/50, 3));
+    checkLevelAlerts(level);
+  }
+}
+
+function checkLevelAlerts(level) {
+  if(level.id === lastSpokenLevel) return;
+  lastSpokenLevel = level.id;
+
+  const msgs = {
+    yellow:  { say:'Увага! Підвищений рівень випромінювання!',       ticker:'⚠ УВАГА: Підвищений рівень!', cls:'warn' },
+    orange:  { say:'Небезпека! Помаранчевий рівень!',                ticker:'🟠 НЕБЕЗПЕКА: Помаранчевий рівень!', cls:'warn' },
+    red:     { say:'Критично! Червоний рівень небезпеки! Евакуйтесь!', ticker:'🔴 КРИТИЧНО: Червоний рівень!', cls:'danger' },
+    black:   { say:'Чорна зона! Негайно покиньте область!',           ticker:'⬛ ЧОРНА ЗОНА: Покиньте область!', cls:'danger' },
+    deadly:  { say:'Смертельний рівень! Негайна евакуація! Смерть неминуча!', ticker:'💀 СМЕРТЕЛЬНО: Евакуація!', cls:'deadly' },
+  };
+  if(msgs[level.id]) {
+    const m = msgs[level.id];
+    playAlarm(level.id);
+    speak(m.say);
+    addTicker(m.ticker, m.cls);
+    triggerFlash(level.color);
+    if(level.id==='red'||level.id==='black'||level.id==='deadly') {
+      document.body.classList.add('shaking');
+      setTimeout(()=>document.body.classList.remove('shaking'),400);
+    }
+  }
+}
+
+function triggerFlash(color) {
+  const el = document.getElementById('flash-overlay');
+  el.style.background = color+'44';
+  el.style.opacity = '1';
+  setTimeout(()=>{ el.style.opacity='0'; }, 150);
+}
+
+// ========== DISPLAY ==========
+function updateDisplay() {
+  const level = getLevelByPower(currentPower);
+  const pt = currentPower / 1000000;
+
+  document.getElementById('gauge-num').textContent = currentPower >= 1000
+    ? (currentPower/1000).toFixed(3) : currentPower.toFixed(2);
+  document.getElementById('gauge-unit').textContent = currentPower >= 1000 ? 'Пт/год' : 'мкПт/год';
+  document.getElementById('dig-mku').textContent = currentPower.toFixed(2);
+  document.getElementById('dig-pt').textContent = pt.toFixed(6);
+  document.getElementById('dig-peak').textContent = peakPower.toFixed(2);
+  document.getElementById('dig-zone').textContent = zoneName;
+
+  // Gauge arc (0-15000 mku = 15 Pt/h log scale)
+  const maxScale = 15000;
+  const arcLen = 408;
+  const logPct = Math.min(Math.log1p(currentPower) / Math.log1p(maxScale), 1);
+  document.getElementById('gauge-arc').style.strokeDashoffset = arcLen * (1 - logPct);
+
+  // Needle
+  const angle = -90 + (logPct * 180);
+  document.getElementById('gauge-needle').setAttribute('transform', `rotate(${angle} 160 170)`);
+
+  // Level badge
+  const badge = document.getElementById('level-badge');
+  badge.textContent = level.label;
+  badge.style.color = level.color;
+  badge.style.borderColor = level.color;
+  if(['red','black','deadly'].includes(level.id)) {
+    badge.style.animation = 'warningPulse 0.5s infinite';
+  } else {
+    badge.style.animation = 'none';
+  }
+
+  // Gauge color
+  document.getElementById('gauge-num').style.color = level.color;
+  document.getElementById('gauge-num').style.textShadow = `0 0 20px ${level.color}`;
+
+  // Body class
+  document.body.className = document.body.className.replace(/level-\w+/g, '');
+  document.body.classList.add(level.bodyClass);
+}
+
+function addTicker(text, cls='normal') {
+  const ticker = document.getElementById('ticker');
+  const div = document.createElement('div');
+  div.className = 'ticker-line' + (cls!=='normal' ? ' '+cls : '');
+  const time = new Date().toLocaleTimeString('uk-UA');
+  div.textContent = `[${time}] ${text}`;
+  ticker.appendChild(div);
+  ticker.scrollTop = ticker.scrollHeight;
+  if(ticker.children.length > 40) ticker.removeChild(ticker.children[0]);
+}
+
+// ========== TABS ==========
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById(tab+'-page').classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(e=>{ if(e.textContent.toLowerCase().includes(tab==='meter'?'дозиметр':'адмін')) e.classList.add('active'); });
+
+  if(tab==='admin' && adminLoggedIn && !leafletMap) {
+    setTimeout(initMap, 100);
+  }
+}
+
+// ========== GEOLOCATION ==========
+function requestLocation() {
+  if(!navigator.geolocation) { alert('Геолокація недоступна'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    document.getElementById('loc-badge').textContent = `📍 ${userLat.toFixed(5)}, ${userLng.toFixed(5)}`;
+    checkZones();
+    if(leafletMap) {
+      if(mapMarker) mapMarker.setLatLng([userLat, userLng]);
+      else {
+        mapMarker = L.marker([userLat, userLng], {
+          icon: L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#4466ff;border-radius:50%;border:2px solid white;box-shadow:0 0 8px #4466ff"></div>', iconSize:[14,14]})
+        }).addTo(leafletMap).bindPopup('Ваша позиція');
+        leafletMap.setView([userLat, userLng], 15);
+      }
+    }
+    addTicker(`📍 Геопозиція визначена: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`);
+  }, err => {
+    addTicker('⚠ Геолокація недоступна: ' + err.message, 'warn');
+  });
+}
+
+function checkZones() {
+  if(userLat===null) return;
+  let found = null;
+  for(let z of zones) {
+    if(pointInZone(userLat, userLng, z)) { found = z; break; }
+  }
+  if(found) {
+    const lvl = LEVELS.find(l=>l.id===found.level);
+    zoneBoost = LEVEL_BASE_POWER[found.level] || 0;
+    zoneName = found.name;
+    addTicker(`📍 Зона: "${found.name}" → ${lvl?lvl.label:'?'}`, found.level==='safe'?'normal':'warn');
+  } else {
+    zoneBoost = 0;
+    zoneName = '—';
+  }
+}
+
+function pointInZone(lat, lng, zone) {
+  if(zone.shape === 'circle') {
+    const d = haversine(lat, lng, zone.center[0], zone.center[1]);
+    return d <= zone.radius;
+  }
+  if(zone.shape === 'rectangle') {
+    return lat>=zone.bounds[0][0] && lat<=zone.bounds[1][0] &&
+           lng>=zone.bounds[0][1] && lng<=zone.bounds[1][1];
+  }
+  return false;
+}
+
+function haversine(lat1,lng1,lat2,lng2) {
+  const R=6371000, dL=((lat2-lat1)*Math.PI/180), dl=((lng2-lng1)*Math.PI/180);
+  const a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Zone check every 5s
+setInterval(() => { if(userLat!==null) checkZones(); }, 5000);
+
+// ========== ADMIN ==========
+const ADMIN_PASS = 'admin123';
+
+function adminLogin() {
+  const p = document.getElementById('admin-pass').value;
+  if(p === ADMIN_PASS) {
+    adminLoggedIn = true;
+    document.getElementById('admin-login-screen').style.display='none';
+    document.getElementById('admin-panel').style.display='block';
+    setTimeout(initMap, 150);
+  } else {
+    alert('Невірний пароль!');
+  }
+}
+
+function adminLogout() {
+  adminLoggedIn = false;
+  document.getElementById('admin-login-screen').style.display='block';
+  document.getElementById('admin-panel').style.display='none';
+  document.getElementById('admin-pass').value='';
+}
+
+// ========== MAP ==========
+function initMap() {
+  if(leafletMap) return;
+  const center = userLat ? [userLat, userLng] : [50.45, 30.52];
+  leafletMap = L.map('map').setView(center, 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap'
+  }).addTo(leafletMap);
+
+  leafletMap.on('click', onMapClick);
+  renderAllZones();
+  if(userLat) {
+    mapMarker = L.marker([userLat, userLng], {
+      icon: L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#4466ff;border-radius:50%;border:2px solid white;box-shadow:0 0 8px #4466ff"></div>', iconSize:[14,14]})
+    }).addTo(leafletMap).bindPopup('Ваша позиція');
+  }
+}
+
+let drawPoints = [];
+let drawPolyline = null;
+
+function startDrawing() {
+  drawingMode = true;
+  drawPoints = [];
+  if(drawPolyline) { leafletMap.removeLayer(drawPolyline); drawPolyline=null; }
+  document.getElementById('draw-hint').textContent = '✏ Режим малювання: клікайте на карті. Для кола - 2 кліки (центр + край). Прямокутник - 2 кути.';
+}
+
+function clearDrawing() {
+  drawingMode = false;
+  drawPoints = [];
+  if(drawPolyline) { leafletMap.removeLayer(drawPolyline); drawPolyline=null; }
+  document.getElementById('draw-hint').textContent = '▶ Натисніть «Намалювати» і клікайте по карті';
+}
+
+function onMapClick(e) {
+  if(!drawingMode) return;
+  const shape = document.getElementById('zone-shape').value;
+  drawPoints.push([e.latlng.lat, e.latlng.lng]);
+
+  // Update preview
+  if(drawPolyline) leafletMap.removeLayer(drawPolyline);
+  if(drawPoints.length >= 1) {
+    const pts = drawPoints.length===1 ? [drawPoints[0], drawPoints[0]] : drawPoints;
+    drawPolyline = L.polyline(pts, {color:'#00ff88', dashArray:'6 4'}).addTo(leafletMap);
+  }
+
+  if(shape==='circle' && drawPoints.length===2) {
+    document.getElementById('draw-hint').textContent = `⬤ Коло визначено! Натисніть «Зберегти».`;
+  } else if(shape==='rectangle' && drawPoints.length===2) {
+    document.getElementById('draw-hint').textContent = `▬ Прямокутник визначено! Натисніть «Зберегти».`;
+  } else {
+    document.getElementById('draw-hint').textContent = `📌 Точка ${drawPoints.length} додана. ${shape==='circle'?'Додайте ще одну для радіусу.':'Додайте ще одну точку для другого кута.'}`;
+  }
+}
+
+function saveZone() {
+  if(drawPoints.length < 2) { alert('Додайте мінімум 2 точки на карті!'); return; }
+  const shape = document.getElementById('zone-shape').value;
+  const level = document.getElementById('zone-level-select').value;
+  const name = document.getElementById('zone-name-input').value || `Зона ${zones.length+1}`;
+
+  let zone;
+  if(shape==='circle') {
+    const r = haversine(drawPoints[0][0], drawPoints[0][1], drawPoints[1][0], drawPoints[1][1]);
+    zone = { id: Date.now(), shape:'circle', center:drawPoints[0], radius:r, level, name };
+  } else {
+    const lats = drawPoints.map(p=>p[0]), lngs = drawPoints.map(p=>p[1]);
+    zone = { id: Date.now(), shape:'rectangle', bounds:[[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]], level, name };
+  }
+
+  zones.push(zone);
+  localStorage.setItem('potuzhnometr_zones', JSON.stringify(zones));
+  clearDrawing();
+  renderAllZones();
+  renderZonesList();
+  addTicker(`💾 Зона "${name}" збережена`, 'normal');
+  document.getElementById('zone-name-input').value = '';
+}
+
+const LEVEL_COLORS = { safe:'#00ff88', discipline:'#88ff00', yellow:'#ffee00', orange:'#ff8800', red:'#ff2200', black:'#990000', deadly:'#ff0000' };
+
+function renderAllZones() {
+  if(!leafletMap) return;
+  drawnLayers.forEach(l=>leafletMap.removeLayer(l));
+  drawnLayers = [];
+
+  zones.forEach(z => {
+    const color = LEVEL_COLORS[z.level]||'#888';
+    let layer;
+    if(z.shape==='circle') {
+      layer = L.circle(z.center, { radius:z.radius, color, fillColor:color, fillOpacity:0.15, weight:2 });
+    } else {
+      layer = L.rectangle(z.bounds, { color, fillColor:color, fillOpacity:0.15, weight:2 });
+    }
+    layer.bindPopup(`<b>${z.name}</b><br>Рівень: ${z.level}`);
+    layer.addTo(leafletMap);
+    drawnLayers.push(layer);
+  });
+}
+
+function renderZonesList() {
+  const list = document.getElementById('zones-list');
+  if(!zones.length) { list.innerHTML='<div style="color:#333;font-size:12px;text-align:center;padding:20px">Зони не задані</div>'; return; }
+  list.innerHTML = zones.map(z => {
+    const lvl = LEVELS.find(l=>l.id===z.level);
+    const color = LEVEL_COLORS[z.level]||'#888';
+    return `<div class="zone-item">
+      <div class="zone-dot" style="background:${color}"></div>
+      <div class="zone-name">${z.name}</div>
+      <div class="zone-level-tag" style="color:${color};border:1px solid ${color}">${lvl?lvl.label.replace(/[^\w\s]/gi,'').trim():z.level}</div>
+      <button class="zone-del" onclick="deleteZone(${z.id})">✖</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteZone(id) {
+  zones = zones.filter(z=>z.id!==id);
+  localStorage.setItem('potuzhnometr_zones', JSON.stringify(zones));
+  renderAllZones();
+  renderZonesList();
+}
+
+function exportZones() {
+  const blob = new Blob([JSON.stringify(zones, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'zones.json';
+  a.click();
+}
+
+function importZones() {
+  document.getElementById('import-file').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      zones = [...zones, ...data];
+      localStorage.setItem('potuzhnometr_zones', JSON.stringify(zones));
+      renderAllZones();
+      renderZonesList();
+      addTicker(`📥 Імпортовано ${data.length} зон`, 'normal');
+    } catch { alert('Помилка формату файлу!'); }
+  };
+  r.readAsText(file);
+}
+
+// ========== INIT ==========
+renderZonesList();
+requestLocation();
+updateDisplay();
+
+// Auto geo check
+setInterval(() => {
+  if(navigator.geolocation && userLat===null) {
+    navigator.geolocation.getCurrentPosition(pos=>{
+      userLat=pos.coords.latitude; userLng=pos.coords.longitude;
+      document.getElementById('loc-badge').textContent=`📍 ${userLat.toFixed(5)}, ${userLng.toFixed(5)}`;
+      checkZones();
+    }, ()=>{});
+  }
+}, 15000);
+
+// Keep page awake on mobile
+if('wakeLock' in navigator) {
+  navigator.wakeLock.request('screen').catch(()=>{});
+}
+</script>
+</body>
+</html>
