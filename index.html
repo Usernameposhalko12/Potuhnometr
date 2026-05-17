@@ -1,0 +1,2342 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>☢ АРБІТР</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection,
+  query, where, getDocs, addDoc, deleteDoc, onSnapshot, arrayUnion, serverTimestamp, orderBy, limit }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCWVGKyz-zWsHQ4UhEAQDzcyZxJ6r4NFAM",
+  authDomain: "potuhno-metr-nikus.firebaseapp.com",
+  projectId: "potuhno-metr-nikus",
+  storageBucket: "potuhno-metr-nikus.firebasestorage.app",
+  messagingSenderId: "933884963692",
+  appId: "1:933884963692:web:28bffc4a2cceb92193e149"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const ADMIN_EMAIL = "usernameposhalko6@gmail.com";
+window._fb = { auth, db, GoogleAuthProvider, signInWithPopup, signOut,
+  onAuthStateChanged, doc, getDoc, setDoc, updateDoc, collection, query,
+  where, getDocs, addDoc, deleteDoc, onSnapshot, arrayUnion, serverTimestamp, orderBy, limit, ADMIN_EMAIL };
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
+:root {
+  --green:#00ff88;--green-dim:#00884a;--green-dark:#002a14;
+  --yellow:#ffe633;--orange:#ff8800;--red:#ff2200;
+  --bg:#03070a;--bg2:#060d10;--bg3:#091215;
+  --border:#0d2a1e;--text:#7aaa90;--text-dim:#244038;
+  --hp-color:#00ff88;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow:hidden;user-select:none;-webkit-user-select:none;}
+
+/* SCANLINES */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.012) 3px,rgba(0,255,136,.012) 4px);pointer-events:none;z-index:2;}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0;}
+.auth-logo{font-family:'Teko',sans-serif;font-size:72px;font-weight:700;color:var(--green);text-shadow:0 0 40px var(--green),0 0 100px #00ff8830;letter-spacing:10px;animation:logoPulse 2.5s ease-in-out infinite;line-height:1;}
+@keyframes logoPulse{0%,100%{text-shadow:0 0 30px var(--green),0 0 80px #00ff8820}50%{text-shadow:0 0 60px var(--green),0 0 140px #00ff8840}}
+.auth-sub{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:7px;color:var(--green-dim);margin-bottom:44px;}
+.auth-box{border:1px solid var(--border);border-top:2px solid var(--green);background:var(--bg2);padding:30px 34px;max-width:340px;width:92%;position:relative;}
+.auth-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#00ff8808,transparent 70%);pointer-events:none;}
+.auth-warn{color:#3a5a4a;font-size:11px;line-height:1.9;margin-bottom:22px;}
+.auth-warn span{color:var(--orange);}
+.auth-btn{width:100%;padding:16px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);font-family:'Orbitron',monospace;font-size:12px;letter-spacing:4px;cursor:pointer;transition:all .2s;margin-bottom:8px;position:relative;overflow:hidden;}
+.auth-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,#00ff8810,transparent);transform:translateX(-100%);transition:transform .4s;}
+.auth-btn:hover::after{transform:translateX(100%);}
+.auth-btn:hover{background:#0a3020;box-shadow:0 0 20px #00ff8820;}
+.auth-nick-form{display:none;flex-direction:column;gap:8px;}
+.auth-nick-form input{width:100%;padding:10px 12px;background:#020806;border:1px solid var(--border);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;}
+.auth-nick-form input:focus{border-color:var(--green-dim);}
+.auth-err{color:var(--red);font-size:10px;min-height:14px;}
+
+/* GEO BLOCK */
+#geo-blocked{position:fixed;inset:0;z-index:9998;background:rgba(3,7,10,.95);display:none;align-items:center;justify-content:center;}
+.geo-box{border:1px solid #330000;border-top:2px solid var(--red);background:var(--bg2);padding:24px;max-width:300px;width:90%;}
+.geo-box h3{color:var(--red);font-family:'Teko',sans-serif;font-size:22px;letter-spacing:3px;margin-bottom:8px;}
+.geo-box p{color:#666;font-size:11px;line-height:1.7;margin-bottom:12px;}
+.geo-box ol{color:#555;font-size:11px;padding-left:18px;line-height:2;margin-bottom:16px;}
+.geo-retry{width:100%;padding:10px;background:#200a0a;border:1px solid var(--red);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:12px;cursor:pointer;}
+.geo-skip{width:100%;padding:8px;margin-top:6px;background:transparent;border:1px solid #222;color:#333;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;}
+
+/* SHELL */
+#shell{display:none;height:100vh;flex-direction:column;position:relative;z-index:10;}
+
+/* HEADER */
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green-dim),transparent);opacity:.5;}
+.h-logo{font-family:'Teko',sans-serif;font-size:22px;font-weight:700;color:var(--green);letter-spacing:4px;text-shadow:0 0 10px #00ff8840;}
+.h-gps{flex:1;font-size:9px;color:var(--text-dim);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.h-gps.on{color:var(--green-dim);}.h-gps.err{color:#663300;}
+.h-dot{width:7px;height:7px;border-radius:50%;background:#1a2a22;flex-shrink:0;}
+.h-dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite;}.h-dot.err{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.h-user{font-size:9px;color:var(--text-dim);cursor:pointer;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
+.h-user:hover{color:var(--green-dim);}
+
+/* NAV */
+.nav{background:#040b0d;border-bottom:1px solid #081610;display:flex;flex-shrink:0;overflow-x:auto;}
+.nav::-webkit-scrollbar{height:2px;}.nav::-webkit-scrollbar-thumb{background:var(--border);}
+.nav-btn{flex:1;min-width:50px;padding:9px 2px;background:none;border:none;color:#1e3a2e;font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;letter-spacing:.5px;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.nav-btn.act{color:var(--green);border-bottom-color:var(--green);text-shadow:0 0 8px var(--green);}
+
+/* PAGES */
+.page{display:none;flex:1;overflow-y:auto;overflow-x:hidden;}
+.page.act{display:flex;flex-direction:column;}
+.page::-webkit-scrollbar{width:2px;}.page::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* ═══ METER PAGE ═══ */
+#pg-meter{align-items:center;padding:10px 12px;gap:8px;}
+
+.dose-wrap{width:100%;max-width:420px;}
+.dose-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.dose-label{font-size:8px;letter-spacing:3px;color:var(--text-dim);}
+.dose-val{font-family:'Orbitron',monospace;font-size:12px;color:var(--green);}
+.dose-bar-bg{width:100%;height:5px;background:#060f0b;border-radius:2px;overflow:hidden;border:1px solid var(--border);}
+.dose-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--yellow),var(--orange),var(--red));background-size:400px 100%;transition:width .6s ease;}
+.dose-marks{display:flex;justify-content:space-between;margin-top:2px;}
+.dose-marks span{font-size:7px;color:var(--text-dim);}
+
+.gauge-wrap{position:relative;width:290px;height:165px;flex-shrink:0;}
+.gauge-svg{width:100%;height:100%;}
+.gauge-center{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;}
+.g-num{font-family:'Orbitron',monospace;font-size:30px;font-weight:900;color:var(--green);line-height:1;transition:color .3s;text-shadow:0 0 20px currentColor;}
+.g-unit{font-size:8px;color:var(--text-dim);letter-spacing:3px;margin-top:1px;}
+
+.zone-tag{width:100%;max-width:420px;border:1px solid var(--green);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;font-family:'Teko',sans-serif;font-size:20px;letter-spacing:2px;color:var(--green);transition:all .4s;position:relative;overflow:hidden;}
+.zone-tag::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,currentColor,transparent);opacity:.04;}
+.zone-tag-name{font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text-dim);letter-spacing:0;}
+
+.stats-grid{width:100%;max-width:420px;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);}
+.stat-cell{background:var(--bg2);padding:7px 4px;display:flex;flex-direction:column;align-items:center;}
+.stat-lbl{font-size:7px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.stat-val{font-family:'Orbitron',monospace;font-size:12px;color:var(--green);}
+.stat-val.orange{color:var(--orange);}.stat-val.red{color:var(--red);}.stat-val.yellow{color:var(--yellow);}
+
+.radar-wrap{width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:12px;}
+.radar-canvas{width:64px;height:64px;flex-shrink:0;}
+.radar-info{flex:1;font-size:10px;}
+.radar-title{color:var(--text-dim);font-size:7px;letter-spacing:3px;margin-bottom:4px;}
+.radar-nearest{color:var(--yellow);font-size:11px;}
+.radar-dist{color:var(--text-dim);font-size:9px;}
+
+.scan-btn-wrap{position:relative;margin:4px 0;}
+.scan-btn{width:136px;height:136px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#0d1c14,#020605);border:2px solid var(--green);color:var(--green);cursor:pointer;position:relative;box-shadow:0 0 30px #00ff8818,inset 0 0 25px #00ff8806;transition:all .15s;display:flex;align-items:center;justify-content:center;}
+.scan-btn.pressing{box-shadow:0 0 60px #00ff8845,inset 0 0 35px #00ff8818;transform:scale(.95);}
+.scan-icon{font-size:30px;display:block;margin-bottom:2px;animation:rotateSlow 8s linear infinite;}
+@keyframes rotateSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.scan-lbl{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;}
+.scan-sub{font-size:8px;color:var(--text-dim);}
+.prog-ring{position:absolute;top:-12px;left:-12px;width:calc(100% + 24px);height:calc(100% + 24px);transform:rotate(-90deg);pointer-events:none;}
+.prog-ring circle{fill:none;stroke:var(--green);stroke-width:2;stroke-dasharray:565;stroke-dashoffset:565;opacity:.7;transition:stroke-dashoffset .08s;}
+
+.streak-bar{width:100%;max-width:420px;display:flex;gap:3px;}
+.streak-day{flex:1;height:26px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--text-dim);letter-spacing:1px;}
+.streak-day.done{background:#081a0e;border-color:var(--green-dim);color:var(--green-dim);}
+.streak-day.today{border-color:var(--yellow);color:var(--yellow);}
+
+/* HP BAR on meter */
+.hp-strip{width:100%;max-width:420px;display:flex;gap:8px;align-items:center;}
+.hp-strip-lbl{font-size:8px;color:var(--text-dim);letter-spacing:2px;flex-shrink:0;}
+.hp-strip-bar{flex:1;height:5px;background:#060f0b;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+.hp-strip-fill{height:100%;background:var(--green);transition:width .5s,background .3s;}
+.hp-strip-num{font-family:'Orbitron',monospace;font-size:10px;color:var(--green);flex-shrink:0;min-width:36px;text-align:right;}
+
+/* ═══ INVENTORY PAGE ═══ */
+#pg-inv{padding:10px 12px;gap:8px;}
+.vitals{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;max-width:520px;margin:0 auto;}
+.vital-box{background:var(--bg2);border:1px solid var(--border);padding:10px 12px;}
+.vital-head{display:flex;justify-content:space-between;margin-bottom:6px;}
+.vital-name{font-size:8px;letter-spacing:2px;color:var(--text-dim);}
+.vital-num{font-family:'Orbitron',monospace;font-size:12px;}
+.vital-bar{height:4px;background:#060f0b;border-radius:2px;overflow:hidden;}
+.vital-fill{height:100%;border-radius:2px;transition:width .5s,background .3s;}
+.fill-green{background:var(--green);}.fill-orange{background:var(--orange);}
+
+.equip-section{width:100%;max-width:520px;margin:0 auto;}
+.section-title{font-family:'Teko',sans-serif;font-size:17px;letter-spacing:3px;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:8px;}
+.equip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.equip-slot{background:var(--bg2);border:1px solid var(--border);padding:10px 8px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.equip-slot:hover{border-color:var(--green-dim);background:#040c09;}
+.equip-slot.filled{border-color:#1a3a2a;}
+.equip-icon{font-size:22px;display:block;margin-bottom:4px;}
+.equip-name{font-size:9px;color:var(--text-dim);}
+.equip-stat{font-size:8px;color:var(--green-dim);margin-top:2px;}
+.equip-rarity{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;}
+.r-common{background:#446644;}.r-uncommon{background:var(--yellow);}.r-rare{background:#4488ff;}.r-legendary{background:#cc44ff;box-shadow:0 0 6px #cc44ff;}
+
+.art-equip-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}
+.art-equip-slot{background:var(--bg2);border:1px solid var(--border);padding:8px 6px;text-align:center;cursor:pointer;position:relative;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .2s;}
+.art-equip-slot:hover{border-color:var(--yellow);}
+.art-equip-slot.filled{border-color:#886600;background:#080600;}
+.art-equip-slot .slot-num{font-size:7px;color:var(--text-dim);position:absolute;top:2px;left:4px;}
+.art-equip-slot .art-icon{font-size:20px;}
+.art-equip-slot .art-ename{font-size:8px;color:var(--yellow);margin-top:2px;}
+.art-equip-slot .art-bonus{font-size:7px;color:var(--green-dim);margin-top:1px;}
+
+.art-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px;}
+.art-slot{background:var(--bg2);border:1px solid var(--border);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;}
+.art-slot:hover{border-color:var(--yellow);background:#080600;}
+.art-slot.empty{opacity:.25;cursor:default;}
+.art-slot.empty:hover{border-color:var(--border);background:var(--bg2);}
+.art-val{font-size:8px;color:var(--yellow);margin-top:2px;}
+.art-icon-big{font-size:22px;}
+
+/* ═══ MAP PAGE ═══ */
+#pg-map{padding:0;position:relative;display:none;}
+#leafmap{width:100%;flex:1;min-height:0;}
+.map-overlay{position:absolute;bottom:10px;left:10px;right:10px;background:rgba(3,7,10,.88);border:1px solid var(--border);padding:8px 12px;display:flex;gap:8px;align-items:center;backdrop-filter:blur(6px);z-index:500;}
+.map-overlay-btn{padding:6px 10px;background:var(--bg2);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.map-overlay-btn:hover{border-color:var(--green-dim);color:var(--green-dim);}
+.map-stat{font-size:9px;color:var(--text-dim);flex:1;}
+.map-stat span{color:var(--green-dim);}
+
+/* ═══ MARKET PAGE ═══ */
+#pg-market{padding:10px 12px;gap:8px;}
+.market-header{width:100%;max-width:520px;margin:0 auto;}
+.mkt-balance{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;}
+.mkt-bal-lbl{font-size:8px;color:var(--text-dim);letter-spacing:2px;}
+.mkt-bal-num{font-family:'Orbitron',monospace;font-size:20px;color:var(--yellow);text-shadow:0 0 15px #ffe63340;}
+.mkt-bal-sub{font-size:8px;color:var(--text-dim);}
+.mkt-tabs{display:flex;margin:8px 0;}
+.mkt-tab{flex:1;padding:7px;background:none;border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;transition:all .2s;}
+.mkt-tab.act{color:var(--yellow);border-color:#886600;background:#080600;}
+.mkt-list{width:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:4px;}
+.mkt-item{background:var(--bg2);border:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .2s;}
+.mkt-item:hover{border-color:#2a4a2a;background:#040a07;}
+.mkt-item-icon{font-size:20px;flex-shrink:0;}
+.mkt-item-info{flex:1;}
+.mkt-item-name{color:var(--text);font-size:12px;}
+.mkt-item-desc{font-size:9px;color:var(--text-dim);margin-top:2px;}
+.mkt-item-price{text-align:right;}
+.mkt-price{font-family:'Orbitron',monospace;font-size:14px;color:var(--yellow);}
+.mkt-price-lbl{font-size:8px;color:var(--text-dim);}
+.mkt-item-rarity{font-size:8px;padding:1px 6px;border-radius:2px;display:inline-block;margin-bottom:2px;}
+.rare-c{color:#446644;border:1px solid #223322;}.rare-u{color:var(--yellow);border:1px solid #443300;}.rare-r{color:#4488ff;border:1px solid #002244;}.rare-l{color:#cc44ff;border:1px solid #440066;}
+.case-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%;max-width:520px;margin:0 auto;}
+.case-card{background:var(--bg2);border:1px solid var(--border);padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.case-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#ffe63308,transparent 70%);}
+.case-card:hover{border-color:var(--yellow);transform:translateY(-2px);}
+.case-icon{font-size:38px;margin-bottom:8px;display:block;}
+.case-name{font-family:'Teko',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text);}
+.case-desc{font-size:9px;color:var(--text-dim);margin:4px 0 8px;line-height:1.5;}
+.case-price{font-family:'Orbitron',monospace;font-size:14px;color:var(--yellow);}
+.case-price-sub{font-size:8px;color:var(--text-dim);}
+
+/* ═══ CASE OVERLAY ═══ */
+#case-overlay{position:fixed;inset:0;z-index:8000;background:rgba(3,7,10,.97);display:none;align-items:center;justify-content:center;flex-direction:column;}
+.case-open-box{text-align:center;max-width:290px;}
+.case-open-icon{font-size:76px;animation:caseFloat 1.2s ease-in-out infinite;}
+@keyframes caseFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-12px) rotate(3deg)}}
+.case-open-name{font-family:'Teko',sans-serif;font-size:30px;color:var(--green);letter-spacing:5px;margin:10px 0 4px;}
+.case-open-desc{font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:22px;}
+.case-open-btn{padding:12px 30px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);font-family:'Orbitron',monospace;font-size:12px;letter-spacing:3px;cursor:pointer;}
+.case-result-icon{font-size:64px;animation:resultPop .5s cubic-bezier(.34,1.56,.64,1);}
+@keyframes resultPop{0%{transform:scale(0) rotate(-20deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+.case-result-rarity{font-size:10px;letter-spacing:4px;margin:10px 0 2px;}
+.case-result-name{font-family:'Teko',sans-serif;font-size:28px;letter-spacing:2px;margin-bottom:4px;}
+.case-result-desc{font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:22px;}
+
+/* ═══ PROFILE PAGE ═══ */
+#pg-profile{padding:10px 12px;gap:8px;}
+.profile-header{width:100%;max-width:520px;margin:0 auto;background:var(--bg2);border:1px solid var(--border);padding:16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;}
+.profile-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 0% 50%,#00ff8808,transparent 60%);pointer-events:none;}
+.profile-avatar{font-size:48px;}
+.profile-info{flex:1;}
+.profile-name{font-family:'Teko',sans-serif;font-size:28px;color:var(--green);letter-spacing:2px;line-height:1;text-shadow:0 0 20px #00ff8840;}
+.profile-rank{font-size:9px;color:var(--text-dim);letter-spacing:2px;}
+.profile-xp-bar{margin-top:8px;}
+.profile-xp-num{font-size:9px;color:var(--text-dim);display:flex;justify-content:space-between;margin-bottom:3px;}
+.xp-bar-bg{height:3px;background:#060f0b;border:1px solid var(--border);}
+.xp-bar-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--yellow));transition:width .5s;}
+.profile-stats{width:100%;max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.pstat-box{background:var(--bg2);border:1px solid var(--border);padding:10px 12px;}
+.pstat-lbl{font-size:8px;color:var(--text-dim);letter-spacing:2px;}
+.pstat-val{font-family:'Orbitron',monospace;font-size:17px;color:var(--green);margin-top:2px;}
+.achievements{width:100%;max-width:520px;margin:0 auto;}
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;}
+.ach-item{background:var(--bg2);border:1px solid var(--border);padding:10px 8px;text-align:center;transition:all .2s;}
+.ach-item.unlocked{border-color:var(--green-dim);background:#040c08;}
+.ach-item.locked{opacity:.25;filter:grayscale(1);}
+.ach-icon{font-size:24px;display:block;margin-bottom:4px;}
+.ach-name{font-size:9px;color:var(--text-dim);}
+.ach-done{font-size:8px;color:var(--green-dim);margin-top:2px;}
+.logout-btn{width:100%;max-width:520px;margin:0 auto;padding:10px;background:transparent;border:1px solid #330000;color:#663300;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;}
+.logout-btn:hover{border-color:var(--red);color:var(--red);}
+
+/* ═══ FRIENDS PAGE ═══ */
+#pg-friends{padding:10px 12px;gap:8px;}
+.friends-wrap{width:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;}
+.friends-search{display:flex;gap:6px;}
+.friends-search input{flex:1;padding:8px 10px;background:#020806;border:1px solid var(--border);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;}
+.friends-search input:focus{border-color:var(--green-dim);}
+.friends-search button{padding:8px 12px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;}
+.friend-item{background:var(--bg2);border:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;}
+.friend-avatar{font-size:26px;}
+.friend-info{flex:1;}
+.friend-name{font-family:'Teko',sans-serif;font-size:18px;color:var(--green);letter-spacing:2px;line-height:1;}
+.friend-rank{font-size:9px;color:var(--text-dim);}
+.friend-btns{display:flex;gap:4px;}
+.fbtn{padding:5px 8px;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;transition:all .2s;}
+.fbtn:hover{border-color:var(--green-dim);color:var(--green-dim);}
+.fbtn.danger:hover{border-color:var(--red);color:var(--red);}
+.section-sep{font-size:8px;color:var(--text-dim);letter-spacing:3px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.trade-item{background:var(--bg2);border:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;}
+.trade-info{flex:1;font-size:10px;color:var(--text);}
+.trade-from{font-size:9px;color:var(--text-dim);}
+
+/* ═══ ADMIN PAGE ═══ */
+#pg-admin{padding:10px 12px;gap:8px;}
+.admin-header{font-family:'Teko',sans-serif;font-size:24px;color:var(--red);letter-spacing:4px;border-bottom:2px solid var(--red);padding-bottom:4px;width:100%;max-width:620px;margin:0 auto;}
+.admin-wrap{width:100%;max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:10px;}
+.admin-section{background:var(--bg2);border:1px solid var(--border);padding:12px;}
+.admin-section h3{font-family:'Teko',sans-serif;font-size:16px;color:var(--orange);letter-spacing:2px;margin-bottom:8px;}
+.admin-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
+.admin-input{flex:1;min-width:80px;padding:6px 8px;background:#020806;border:1px solid var(--border);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;}
+.admin-input:focus{border-color:var(--green-dim);}
+.admin-select{flex:1;min-width:80px;padding:6px 8px;background:#020806;border:1px solid var(--border);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;}
+.abtn{padding:7px 12px;border:1px solid var(--border);color:var(--text-dim);background:transparent;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.abtn:hover{border-color:var(--green-dim);color:var(--green-dim);}
+.abtn.red:hover{border-color:var(--red);color:var(--red);}
+.abtn.yellow{border-color:#443300;color:var(--yellow);}
+.abtn.yellow:hover{border-color:var(--yellow);}
+.admin-log{font-size:9px;color:var(--text-dim);line-height:1.8;max-height:80px;overflow-y:auto;border-top:1px solid var(--border);padding-top:6px;margin-top:6px;}
+.admin-map-info{font-size:9px;color:var(--text-dim);line-height:1.8;}
+.player-list-item{background:var(--bg3);border:1px solid var(--border);padding:6px 10px;display:flex;align-items:center;gap:8px;font-size:10px;cursor:pointer;transition:all .2s;}
+.player-list-item:hover{border-color:var(--green-dim);}
+.player-list-item.selected{border-color:var(--green);background:#040c08;}
+.draw-mode-banner{position:fixed;top:44px;left:0;right:0;background:rgba(255,136,0,.12);border-bottom:1px solid var(--orange);padding:6px 12px;font-size:10px;color:var(--orange);z-index:1000;display:none;text-align:center;letter-spacing:1px;}
+
+/* ═══ FX ═══ */
+#flash{position:fixed;inset:0;pointer-events:none;z-index:7000;opacity:0;transition:opacity .08s;}
+.scan-line{position:fixed;left:0;right:0;height:2px;z-index:50;pointer-events:none;display:none;background:linear-gradient(transparent,rgba(0,255,136,.5),transparent);animation:scanAnim 1.8s linear infinite;}
+@keyframes scanAnim{0%{top:-2px}100%{top:100vh}}
+body.scanning .scan-line{display:block;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px) rotate(-.3deg)}40%{transform:translateX(5px) rotate(.3deg)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+body.shaking{animation:shake .25s 3;}
+
+/* ═══ MODAL ═══ */
+#modal{position:fixed;inset:0;z-index:9000;background:rgba(3,7,10,.92);display:none;align-items:center;justify-content:center;}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-top:2px solid var(--green);padding:22px;max-width:310px;width:90%;max-height:82vh;overflow-y:auto;position:relative;}
+.modal-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#00ff8806,transparent 60%);pointer-events:none;}
+.modal-title{font-family:'Teko',sans-serif;font-size:22px;color:var(--green);letter-spacing:3px;margin-bottom:12px;}
+.modal-body{font-size:11px;color:var(--text);line-height:1.7;margin-bottom:16px;}
+.modal-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.mbtn{flex:1;min-width:80px;padding:9px;border:1px solid var(--border);color:var(--text-dim);background:none;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;}
+.mbtn:hover{border-color:var(--green-dim);color:var(--green-dim);}
+.mbtn.confirm{border-color:var(--green);color:var(--green);background:var(--green-dark);}
+.mbtn.danger{border-color:var(--red);color:var(--red);background:#1a0808;}
+
+@media(max-width:360px){.case-grid{grid-template-columns:1fr;}.equip-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-logo">☢ АРБІТР</div>
+  <div class="auth-sub">ARBITR · FIELD EDITION · v3.0</div>
+  <div class="auth-box">
+    <div id="auth-step-login">
+      <p class="auth-warn">
+        Після Великого Викиду Потужності світ змінився назавжди.<br><br>
+        Ти — <span>Арбітр</span>. Ходиш реальним містом, збираєш артефакти в аномаліях, ризикуєш дозою і заробляєш на торгівлі.<br><br>
+        <span>Потрібен Google акаунт для входу.</span>
+      </p>
+      <button class="auth-btn" id="google-btn">🔐 УВІЙТИ ЧЕРЕЗ GOOGLE</button>
+    </div>
+    <div id="auth-step-nick" class="auth-nick-form">
+      <p class="auth-warn">Вибери <span>позивний</span> (нікнейм):</p>
+      <input type="text" id="nick-input" placeholder="Введи нікнейм..." maxlength="20">
+      <div class="auth-err" id="nick-err"></div>
+      <button class="auth-btn" id="nick-confirm-btn">✅ ПІДТВЕРДИТИ</button>
+    </div>
+  </div>
+</div>
+
+<!-- GEO BLOCKED -->
+<div id="geo-blocked">
+  <div class="geo-box">
+    <h3>📍 GPS ЗАБЛОКОВАНО</h3>
+    <p>Без геолокації Арбітр не знає де ти.</p>
+    <ol>
+      <li>Натисни 🔒 в адресному рядку</li>
+      <li>Знайди «Місцезнаходження»</li>
+      <li>Вибери «Дозволити»</li>
+      <li>Перезавантаж сторінку</li>
+    </ol>
+    <button class="geo-retry" onclick="retryGeo()">🔄 Спробувати знову</button>
+    <button class="geo-skip" onclick="skipGeo()">Продовжити без GPS (демо)</button>
+  </div>
+</div>
+
+<div class="scan-line"></div>
+<div id="flash"></div>
+<div class="draw-mode-banner" id="draw-banner">✏ РЕЖИМ МАЛЮВАННЯ — натискай на карту. Подвійний клік — завершити.</div>
+
+<!-- MAIN SHELL -->
+<div id="shell">
+  <div class="header">
+    <div class="h-logo">☢ АРБІТР</div>
+    <div class="h-dot" id="h-dot"></div>
+    <div class="h-gps" id="h-gps">Очікування GPS...</div>
+    <div style="font-size:9px;color:var(--text-dim);margin-left:auto;font-family:'Orbitron',monospace;" id="h-gold">₴<span id="gold-disp">0</span></div>
+    <div class="h-user" id="h-user" onclick="showPage('profile',document.querySelector('[data-page=profile]'))">👤</div>
+  </div>
+  <div class="nav">
+    <button class="nav-btn act" data-page="meter" onclick="showPage('meter',this)">☢ РАДАР</button>
+    <button class="nav-btn" data-page="inv" onclick="showPage('inv',this)">🎒 ІНВЕНТ</button>
+    <button class="nav-btn" data-page="map" onclick="showPage('map',this)">🗺 КАРТА</button>
+    <button class="nav-btn" data-page="market" onclick="showPage('market',this)">💰 РИНОК</button>
+    <button class="nav-btn" data-page="friends" onclick="showPage('friends',this)">👥 ДРУЗІ</button>
+    <button class="nav-btn" data-page="profile" onclick="showPage('profile',this)">👤 ПРОФІЛЬ</button>
+    <button class="nav-btn" data-page="admin" id="admin-nav-btn" style="display:none;color:#ff4400;" onclick="showPage('admin',this)">🔴 АДМІН</button>
+  </div>
+
+  <!-- METER PAGE -->
+  <div class="page act" id="pg-meter">
+    <div class="dose-wrap">
+      <div class="dose-header">
+        <span class="dose-label">☢ ДОБОВА ДОЗА</span>
+        <span class="dose-val"><span id="dose-num">0</span> / 150 мкПт</span>
+      </div>
+      <div class="dose-bar-bg"><div class="dose-bar-fill" id="dose-fill"></div></div>
+      <div class="dose-marks"><span>0</span><span>50</span><span>150 норма</span><span>200</span><span>250</span></div>
+    </div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" viewBox="0 0 280 160">
+        <defs>
+          <linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00ff88"/><stop offset="35%" stop-color="#ffe633"/>
+            <stop offset="65%" stop-color="#ff8800"/><stop offset="100%" stop-color="#ff2200"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path d="M 20 148 A 110 110 0 0 1 260 148" fill="none" stroke="#060f0b" stroke-width="16" stroke-linecap="round"/>
+        <path id="g-arc" d="M 20 148 A 110 110 0 0 1 260 148" fill="none" stroke="url(#ag)" stroke-width="14" stroke-linecap="round" stroke-dasharray="346" stroke-dashoffset="346" style="transition:stroke-dashoffset .5s ease" filter="url(#glow)"/>
+        <g id="g-needle" transform="rotate(-90 140 148)">
+          <polygon points="140,148 137,54 143,54" fill="#ff3300" opacity=".95"/>
+          <circle cx="140" cy="148" r="7" fill="#080808" stroke="#ff3300" stroke-width="2"/>
+        </g>
+        <g fill="#1a3a2a" font-size="8" font-family="'Share Tech Mono'" text-anchor="middle">
+          <text x="16" y="128">0</text><text x="52" y="70">10</text>
+          <text x="140" y="22">75</text><text x="228" y="70">250</text><text x="265" y="128">15К</text>
+        </g>
+      </svg>
+      <div class="gauge-center">
+        <div class="g-num" id="g-num">0.0</div>
+        <div class="g-unit" id="g-unit">мкПт/год</div>
+      </div>
+    </div>
+    <div class="zone-tag" id="zone-tag">
+      <span id="zone-label">✅ БЕЗПЕЧНА ЗОНА</span>
+      <span class="zone-tag-name" id="zone-name-disp">Поза зонами</span>
+    </div>
+    <div class="hp-strip">
+      <span class="hp-strip-lbl">❤ HP</span>
+      <div class="hp-strip-bar"><div class="hp-strip-fill" id="hp-strip-fill" style="width:100%"></div></div>
+      <span class="hp-strip-num" id="hp-strip-num">250</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-lbl">мкПт/год</div><div class="stat-val" id="s-mkpt">0.0</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Пік сесії</div><div class="stat-val orange" id="s-peak">0.0</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Артефакти</div><div class="stat-val yellow" id="s-arts">0</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Пройдено</div><div class="stat-val" id="s-dist">0м</div></div>
+    </div>
+    <div class="radar-wrap">
+      <canvas class="radar-canvas" id="radar-canvas" width="64" height="64"></canvas>
+      <div class="radar-info">
+        <div class="radar-title">▶ НАЙБЛИЖЧА АНОМАЛІЯ</div>
+        <div class="radar-nearest" id="radar-nearest">Сканування...</div>
+        <div class="radar-dist" id="radar-dist">Рухайся для виявлення</div>
+      </div>
+    </div>
+    <div class="scan-btn-wrap">
+      <button class="scan-btn" id="scan-btn"
+        onmousedown="startScan()" onmouseup="stopScan()" onmouseleave="stopScan()"
+        ontouchstart="startScan(event)" ontouchend="stopScan()">
+        <svg class="prog-ring" viewBox="0 0 170 170">
+          <circle id="prog-circle" cx="85" cy="85" r="90"/>
+        </svg>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none">
+          <span class="scan-icon">☢</span>
+          <span class="scan-lbl">СКАНУВАТИ</span>
+          <span class="scan-sub">УТРИМУЙ 3с</span>
+        </div>
+      </button>
+    </div>
+    <div class="streak-bar" id="streak-bar"></div>
+  </div>
+
+  <!-- INVENTORY PAGE -->
+  <div class="page" id="pg-inv">
+    <div class="vitals">
+      <div class="vital-box">
+        <div class="vital-head">
+          <span class="vital-name">❤ ЗДОРОВ'Я</span>
+          <span class="vital-num" style="color:var(--red)" id="hp-num">250</span>
+        </div>
+        <div class="vital-bar"><div class="vital-fill fill-green" id="hp-fill" style="width:100%"></div></div>
+      </div>
+      <div class="vital-box">
+        <div class="vital-head">
+          <span class="vital-name">☢ ДОЗА</span>
+          <span class="vital-num" style="color:var(--orange)" id="dose-num2">0</span>
+        </div>
+        <div class="vital-bar"><div class="vital-fill fill-orange" id="dose-fill2" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="equip-section">
+      <div class="section-title">⚡ АРТЕФАКТИ (макс. 4)</div>
+      <div class="art-equip-grid" id="art-equip-grid"></div>
+    </div>
+    <div class="equip-section">
+      <div class="section-title">🛡 СПОРЯДЖЕННЯ</div>
+      <div class="equip-grid" id="equip-grid"></div>
+    </div>
+    <div class="equip-section">
+      <div class="section-title">🎒 РЮКЗАК (<span id="art-count">0</span>/<span id="art-max">8</span>)</div>
+      <div class="art-grid" id="art-grid"></div>
+    </div>
+  </div>
+
+  <!-- MAP PAGE -->
+  <div class="page" id="pg-map" style="display:none">
+    <div id="leafmap" style="flex:1;min-height:0"></div>
+    <div class="map-overlay">
+      <div class="map-stat">Зон: <span id="map-zone-count">0</span> · Аном: <span id="map-anom-count">0</span></div>
+      <button class="map-overlay-btn" onclick="centerMap()">📍 Я тут</button>
+      <button class="map-overlay-btn" onclick="clearFog()">🌫 Скинути туман</button>
+    </div>
+  </div>
+
+  <!-- MARKET PAGE -->
+  <div class="page" id="pg-market">
+    <div class="market-header">
+      <div class="mkt-balance">
+        <div>
+          <div class="mkt-bal-lbl">💰 БАЛАНС АРБІТРА</div>
+          <div class="mkt-bal-num">₴ <span id="mkt-gold">0</span></div>
+        </div>
+        <div class="mkt-bal-sub">Торгуй артефактами<br>та купуй спорядження</div>
+      </div>
+    </div>
+    <div class="mkt-tabs">
+      <button class="mkt-tab act" onclick="mktTab('sell',this)">📤 ПРОДАТИ</button>
+      <button class="mkt-tab" onclick="mktTab('buy',this)">📥 КУПИТИ</button>
+      <button class="mkt-tab" onclick="mktTab('cases',this)">📦 КЕЙСИ</button>
+    </div>
+    <div class="mkt-list" id="mkt-sell-list"></div>
+    <div class="mkt-list" id="mkt-buy-list" style="display:none"></div>
+    <div class="case-grid" id="mkt-cases-list" style="display:none"></div>
+  </div>
+
+  <!-- FRIENDS PAGE -->
+  <div class="page" id="pg-friends">
+    <div class="friends-wrap">
+      <div class="friends-search">
+        <input type="text" id="friend-search-input" placeholder="Нікнейм гравця...">
+        <button onclick="searchFriend()">🔍</button>
+      </div>
+      <div id="friend-search-result"></div>
+      <div class="section-sep">👥 МОЇ ДРУЗІ</div>
+      <div id="friends-list"></div>
+      <div class="section-sep">🔄 ЗАПИТИ В ДРУЗІ</div>
+      <div id="friend-requests-list"></div>
+      <div class="section-sep">📦 ТРЕЙД-ПРОПОЗИЦІЇ</div>
+      <div id="trade-list"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE PAGE -->
+  <div class="page" id="pg-profile">
+    <div class="profile-header">
+      <div class="profile-avatar" id="pf-avatar">🧪</div>
+      <div class="profile-info">
+        <div class="profile-name" id="pf-name">АРБІТР</div>
+        <div class="profile-rank" id="pf-rank">НОВАК · РІВЕНЬ 1</div>
+        <div class="profile-xp-bar">
+          <div class="profile-xp-num">
+            <span>XP: <span id="pf-xp">0</span></span>
+            <span id="pf-xp-next">100</span>
+          </div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="profile-stats">
+      <div class="pstat-box"><div class="pstat-lbl">АРТЕФАКТІВ</div><div class="pstat-val" id="ps-arts">0</div></div>
+      <div class="pstat-box"><div class="pstat-lbl">ПРОЙДЕНО (км)</div><div class="pstat-val" id="ps-dist">0.0</div></div>
+      <div class="pstat-box"><div class="pstat-lbl">ЗАРОБЛЕНО ₴</div><div class="pstat-val" id="ps-earned">0</div></div>
+      <div class="pstat-box"><div class="pstat-lbl">❤ HP</div><div class="pstat-val" id="ps-hp">250</div></div>
+    </div>
+    <div class="achievements">
+      <div class="section-title" style="max-width:520px;margin:0 auto">🏆 ДОСЯГНЕННЯ</div>
+      <div class="ach-grid" id="ach-grid"></div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">🚪 ВИЙТИ З АКАУНТУ</button>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="pg-admin">
+    <div class="admin-header">🔴 АДМІН ПАНЕЛЬ</div>
+    <div class="admin-wrap">
+
+      <div class="admin-section">
+        <h3>👥 ВИБРАТИ ГРАВЦЯ</h3>
+        <div class="admin-row">
+          <button class="abtn yellow" onclick="adminLoadPlayers()">🔄 Завантажити список</button>
+        </div>
+        <div id="admin-players-list" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
+        <div style="font-size:9px;color:var(--green-dim);margin-top:6px;">Вибрано: <span id="admin-selected-nick" style="color:var(--yellow)">—</span></div>
+      </div>
+
+      <div class="admin-section">
+        <h3>🗺 ЗОНИ ПОТУЖНОСТІ</h3>
+        <div class="admin-row">
+          <input class="admin-input" id="az-name" placeholder="Назва зони">
+          <select class="admin-select" id="az-level">
+            <option value="safe">✅ Безпечна</option>
+            <option value="discipline">🟢 Дисципліна</option>
+            <option value="yellow">🟡 Підвищений</option>
+            <option value="orange">🟠 Небезпека</option>
+            <option value="red">🔴 Критичний</option>
+            <option value="black">⬛ Чорна</option>
+            <option value="deadly">💀 Смертельно</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <button class="abtn yellow" onclick="adminDrawZone('circle')">⭕ Коло</button>
+          <button class="abtn yellow" onclick="adminDrawZone('polygon')">✏ Полігон</button>
+          <button class="abtn" id="az-finish-btn" style="display:none;border-color:var(--green);color:var(--green)" onclick="adminFinishPolygon()">✅ Зберегти</button>
+          <button class="abtn red" onclick="adminCancelDraw()">✕ Скасувати</button>
+        </div>
+        <div class="admin-map-info" id="az-info">Відкрий Карту і намалюй зону.</div>
+
+        <div id="az-list" style="margin-top:8px;display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto;"></div>
+      </div>
+      <div class="admin-section">
+        <h3>☢ АНОМАЛІЇ</h3>
+        <div class="admin-row">
+          <select class="admin-select" id="aa-type">
+            <option value="crystal">💎 Кристал</option>
+            <option value="core">🔮 Ядро</option>
+            <option value="lens">🌀 Лінза</option>
+            <option value="ember">🔥 Жар-Камінь</option>
+            <option value="ghost">👻 Привид</option>
+            <option value="eye">👁 Всевидяче Око</option>
+            <option value="anchor">⚓ Анкер</option>
+            <option value="shard">🔶 Уламок</option>
+            <option value="spark">⚡ Іскра</option>
+            <option value="vial">🧪 Флакон</option>
+          </select>
+          <button class="abtn yellow" onclick="adminPlaceAnomaly()">📍 Поставити</button>
+          <button class="abtn red" onclick="adminCancelDraw()">✕</button>
+        </div>
+        <div class="admin-map-info">Перейди на Карту → натисни місце.</div>
+      </div>
+
+      <div class="admin-section">
+        <h3>🎁 ВИДАТИ / ЗАБРАТИ АРТЕФАКТ</h3>
+        <div class="admin-row">
+          <select class="admin-select" id="ag-item">
+            <option value="">-- Артефакт --</option>
+            <option value="crystal">💎 Кристал</option>
+            <option value="core">🔮 Ядро</option>
+            <option value="lens">🌀 Лінза</option>
+            <option value="ember">🔥 Жар-Камінь</option>
+            <option value="ghost">👻 Привид</option>
+            <option value="eye">👁 Всевидяче Око</option>
+            <option value="anchor">⚓ Анкер</option>
+            <option value="shard">🔶 Уламок</option>
+            <option value="spark">⚡ Іскра</option>
+            <option value="vial">🧪 Флакон</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <button class="abtn yellow" onclick="adminGiveItem()">✅ Видати</button>
+          <button class="abtn red" onclick="adminTakeItem()">❌ Забрати останній</button>
+        </div>
+        <div class="admin-log" id="ag-log">—</div>
+      </div>
+
+      <div class="admin-section">
+        <h3>💰 ЗОЛОТО</h3>
+        <div class="admin-row">
+          <input class="admin-input" id="ag-gold-amt" placeholder="Сума ₴" type="number">
+        </div>
+        <div class="admin-row">
+          <button class="abtn yellow" onclick="adminGiveGold(1)">➕ Видати</button>
+          <button class="abtn red" onclick="adminGiveGold(-1)">➖ Забрати</button>
+        </div>
+        <div class="admin-log" id="ag-gold-log">—</div>
+      </div>
+
+      <div class="admin-section">
+        <h3>📦 ВІДКРИТИ КЕЙС ГРАВЦЮ</h3>
+        <div class="admin-row">
+          <select class="admin-select" id="ag-case-type">
+            <option value="basic">📦 Стандартний</option>
+            <option value="advanced">🔒 Просунутий</option>
+            <option value="premium">💰 Преміум</option>
+            <option value="legend">👑 Легендарний</option>
+          </select>
+          <button class="abtn yellow" onclick="adminOpenCaseFor()">🎁 Відкрити</button>
+        </div>
+        <div class="admin-log" id="ag-case-log">—</div>
+      </div>
+
+      <div class="admin-section">
+        <h3>🚫 БАН ГРАВЦЯ</h3>
+        <div class="admin-row">
+          <input class="admin-input" id="ab-reason" placeholder="Причина бану">
+        </div>
+        <div class="admin-row">
+          <button class="abtn red" onclick="adminBan(true)">🚫 Забанити</button>
+          <button class="abtn" onclick="adminBan(false)">✅ Розбанити</button>
+        </div>
+        <div class="admin-log" id="ab-log">—</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CASE OVERLAY -->
+<div id="case-overlay" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(3,7,10,.97);align-items:center;justify-content:center;flex-direction:column;">
+  <div class="case-open-box" id="case-open-box"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA TABLES
+// ═══════════════════════════════════════════
+const LEVELS=[
+  {id:'safe',      max:10,      label:'✅ БЕЗПЕЧНА',   color:'#00ff88',basePower:5,    rate:.35,xpMul:1  },
+  {id:'discipline',max:40,      label:'🟢 ДИСЦИПЛІНА', color:'#88ff00',basePower:25,   rate:1,  xpMul:1.5},
+  {id:'yellow',    max:75,      label:'🟡 ПІДВИЩЕНИЙ', color:'#ffe633',basePower:58,   rate:2.5,xpMul:2  },
+  {id:'orange',    max:100,     label:'🟠 НЕБЕЗПЕКА',  color:'#ff8800',basePower:88,   rate:6,  xpMul:3  },
+  {id:'red',       max:1000,    label:'🔴 КРИТИЧНИЙ',  color:'#ff2200',basePower:500,  rate:16, xpMul:5  },
+  {id:'black',     max:15000,   label:'⬛ ЧОРНА ЗОНА', color:'#cc0000',basePower:7000, rate:45, xpMul:10 },
+  {id:'deadly',    max:Infinity,label:'💀 СМЕРТЕЛЬНО', color:'#ff0000',basePower:20000,rate:110,xpMul:20 },
+];
+
+const ARTIFACTS=[
+  {id:'crystal',icon:'💎',name:'Кристал',       rarity:'common',   value:50,  desc:'Звичайний кристал Потужності.',      bonus:null},
+  {id:'shard',  icon:'🔶',name:'Уламок',         rarity:'common',   value:30,  desc:'Майже нічого, але все ж артефакт.',  bonus:null},
+  {id:'core',   icon:'🔮',name:'Ядро',           rarity:'uncommon', value:200, desc:'Концентрований фрагмент аномалії. +5 HP при знахідці.',bonus:{hp:5}},
+  {id:'lens',   icon:'🌀',name:'Лінза',          rarity:'uncommon', value:180, desc:'Захист від дози +20%.',              bonus:{doseShield:.2}},
+  {id:'spark',  icon:'⚡',name:'Іскра',          rarity:'uncommon', value:220, desc:'+15 XP при знахідці.',               bonus:{findXp:15}},
+  {id:'ember',  icon:'🔥',name:'Жар-Камінь',     rarity:'rare',     value:500, desc:'+20 XP при кожному скані.',          bonus:{scanXp:20}},
+  {id:'ghost',  icon:'👻',name:'Привид',         rarity:'rare',     value:450, desc:'Поглинає 30% дози.',                 bonus:{doseShield:.3}},
+  {id:'vial',   icon:'🧪',name:'Флакон',         rarity:'rare',     value:600, desc:'Відновлює 30 HP миттєво.',           bonus:{hp:30}},
+  {id:'eye',    icon:'👁', name:'Всевидяче Око',  rarity:'legendary',value:2000,desc:'+50% радіус радара.',               bonus:{radar:50}},
+  {id:'anchor', icon:'⚓',name:'Анкер',          rarity:'legendary',value:1800,desc:'Зменшує дозу на 40%.',              bonus:{doseShield:.4}},
+];
+
+// Додай глобально на початку скрипту:
+const _tradeOffers = new Map();
+
+// Rarity pools by zone level
+const ZONE_POOL={
+  safe:     ['crystal','shard'],
+  discipline:['crystal','shard'],
+  yellow:   ['crystal','shard','core','lens','spark'],
+  orange:   ['core','lens','spark','ember','ghost'],
+  red:      ['ember','ghost','vial'],
+  black:    ['ember','ghost','vial','eye','anchor'],
+  deadly:   ['vial','eye','anchor'],
+};
+
+const EQUIPMENT_SLOTS=[
+  {id:'helmet', icon:'⛑', name:'Шолом',    empty:'Немає',   stat:'def'},
+  {id:'suit',   icon:'🥋', name:'Костюм',   empty:'Немає',   stat:'dose'},
+  {id:'boots',  icon:'👟', name:'Чоботи',   empty:'Немає',   stat:'spd'},
+  {id:'gloves', icon:'🧤', name:'Рукавиці', empty:'Немає',   stat:'loot'},
+  {id:'detector',icon:'📡',name:'Детектор', empty:'Базовий', stat:'rad'},
+  {id:'backpack',icon:'🎒',name:'Рюкзак',   empty:'Малий',   stat:'cap'},
+];
+
+const SHOP_ITEMS=[
+  {id:'helmet_basic',  slot:'helmet',  icon:'⛑', name:'Шолом Новака',   rarity:'common',   price:300, stat:'def:+10%',  desc:'Базовий захист голови.'},
+  {id:'suit_basic',    slot:'suit',    icon:'🥋', name:'Комбінезон',     rarity:'common',   price:500, stat:'dose:-15',  desc:'Простий захисний костюм.'},
+  {id:'boots_basic',   slot:'boots',   icon:'👟', name:'Чоботи Рейдера', rarity:'uncommon', price:400, stat:'spd:+20%',  desc:'Легкі польові чоботи.'},
+  {id:'gloves_basic',  slot:'gloves',  icon:'🧤', name:'Тактичні рукав.',rarity:'uncommon', price:350, stat:'loot:+5%',  desc:'Підвищений шанс на рідкісні.'},
+  {id:'detector_adv',  slot:'detector',icon:'📡', name:'Детектор MK-II', rarity:'rare',     price:1200,stat:'rad:+80м',  desc:'Подвоєний радіус виявлення.'},
+  {id:'backpack_large',slot:'backpack',icon:'🎒', name:'Великий рюкзак', rarity:'uncommon', price:600, stat:'cap:+4',    desc:'12 слотів для артефактів.'},
+  {id:'beer',          slot:'consume', icon:'🍺', name:'Пиво',           rarity:'common',   price:200, stat:'dose:-200', desc:'Очищує 200 мкПт добової дози. Вживати обережно!'},
+];
+
+const CASES=[
+  {id:'basic',   icon:'📦',name:'СТАНДАРТНИЙ',price:200, priceReal:false,desc:'Переважно Common/Uncommon.',pool:['crystal','shard','lens','spark']},
+  {id:'advanced',icon:'🔒',name:'ПРОСУНУТИЙ', price:800, priceReal:false,desc:'Вищий шанс на Rare.',       pool:['core','lens','ember','ghost','spark','vial']},
+  {id:'premium', icon:'💰',name:'ПРЕМІУМ',    price:null,priceReal:true, desc:'Гарантований Rare+.',       pool:['ember','ghost','vial','eye','anchor']},
+  {id:'legend',  icon:'👑',name:'ЛЕГЕНДАРНИЙ',price:null,priceReal:true, desc:'Guaranteed Legendary.',     pool:['eye','anchor']},
+];
+
+const ACHIEVEMENTS=[
+  {id:'first_scan', icon:'☢',name:'Перший скан',   desc:'Зроби перше вимірювання',  check:s=>s.totalScans>=1},
+  {id:'walker',     icon:'🚶',name:'Ходок',          desc:'Пройди 1 км',              check:s=>s.totalDist>=1000},
+  {id:'collector',  icon:'💎',name:'Колекціонер',    desc:'Знайди 5 артефактів',      check:s=>s.totalArts>=5},
+  {id:'trader',     icon:'💰',name:'Торговець',      desc:'Зароби 500 ₴',             check:s=>s.totalEarned>=500},
+  {id:'danger',     icon:'⚠', name:'Ризикований',   desc:'Ввійди у червону зону',    check:s=>s.redZoneVisits>=1},
+  {id:'streak3',    icon:'🔥',name:'3 дні підряд',   desc:'Грай 3 дні поспіль',       check:s=>s.maxStreak>=3},
+  {id:'dose_high',  icon:'☣', name:'Опромінений',   desc:'Отримай 100+ мкПт/год',    check:s=>s.maxDose>=100},
+  {id:'rich',       icon:'👑',name:'Багач',           desc:'Накопич 2000 ₴',           check:s=>s.gold>=2000},
+  {id:'explorer',   icon:'🗺', name:'Дослідник',     desc:'Пройди 5 км',              check:s=>s.totalDist>=5000},
+];
+
+const RANKS=['НОВАК','РЕЙДЕР','СТАЛКЕР','ВЕТЕРАН','МАЙСТЕР','ЛЕГЕНДА'];
+const RANK_XP=[0,100,300,700,1500,3000];
+const MAX_HP=250;
+const DOSE_LIMIT=150; // above this = damage
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let state={
+  gold:0, hp:MAX_HP, level:1, xp:0,
+  dailyDose:0, lastDoseDay:null,
+  equipment:{helmet:null,suit:null,boots:null,gloves:null,detector:null,backpack:null},
+  artifacts:[], equippedArtifacts:[], maxArtSlots:8,
+  totalScans:0, totalDist:0, totalArts:0, totalEarned:0,
+  redZoneVisits:0, maxStreak:0, maxDose:0,
+  streak:0, lastPlayDay:null,
+  achievements:[], zones:[], nickname:'', friends:[], banned:false,
+  // fog of war: list of [lat,lng] visited
+  fogVisited:[],
+};
+
+let currentUser=null;
+let audioCtx=null;
+let userLat=null, userLng=null;
+let geoWatchId=null;
+let currentZone=null;
+let currentPower=0, peakPower=0;
+let measuring=false, measureTimer=null, holdTime=0;
+let lastTickMs=0, lastAlertLvl=null;
+let leafletMap=null, mapMarker=null;
+let fogLayer=null; // canvas overlay for fog
+let lastPos=null, sessionDist=0;
+let anomalies=[];
+let currentPage='meter';
+let adminDrawMode=null;
+let adminDrawPoints=[];
+let adminCircleMarker=null;
+let adminPolyline=null;
+let adminPolyMarkers=[];
+let adminSelectedPlayer=null; // {id, data}
+let doseHpDebounce=null; // timer for continuous dose damage
+
+// ═══════════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════════
+function waitFB(cb){if(window._fb){cb();}else{setTimeout(()=>waitFB(cb),100);}}
+
+waitFB(()=>{
+  const {auth,onAuthStateChanged}=window._fb;
+  document.getElementById('google-btn').onclick=doGoogleLogin;
+  document.getElementById('nick-confirm-btn').onclick=confirmNick;
+  onAuthStateChanged(auth,async user=>{
+    if(user){currentUser=user;await loadUser(user);}
+    else{showAuthScreen();}
+  });
+});
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function showAuthScreen(){
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('shell').style.display='none';
+}
+async function doGoogleLogin(){
+  const {auth,GoogleAuthProvider,signInWithPopup}=window._fb;
+  try{
+    const provider=new GoogleAuthProvider();
+    await signInWithPopup(auth,provider);
+  }catch(e){alert('Помилка входу: '+e.message);}
+}
+async function loadUser(user){
+  const {db,doc,getDoc}=window._fb;
+  const ref=doc(db,'players',user.uid);
+  const snap=await getDoc(ref);
+  if(!snap.exists()){
+    document.getElementById('auth-step-login').style.display='none';
+    document.getElementById('auth-step-nick').style.display='flex';
+  }else{
+    const data=snap.data();
+    if(data.banned){alert('Ваш акаунт заблоковано. Причина: '+(data.banReason||'порушення правил'));await window._fb.signOut(window._fb.auth);return;}
+    Object.assign(state,data);
+    // ensure arrays
+    if (!Array.isArray(state.ownedEquipment)) state.ownedEquipment = [];
+    if(!Array.isArray(state.equippedArtifacts))state.equippedArtifacts=[];
+    if(!Array.isArray(state.artifacts))state.artifacts=[];
+    if(!Array.isArray(state.friends))state.friends=[];
+    if(!Array.isArray(state.fogVisited))state.fogVisited=[];
+    if(!state.hp||state.hp>MAX_HP)state.hp=MAX_HP;
+    startGame();
+  }
+}
+async function confirmNick(){
+  const nick=document.getElementById('nick-input').value.trim();
+  const err=document.getElementById('nick-err');
+  if(!nick||nick.length<2){err.textContent='Мінімум 2 символи';return;}
+  if(!/^[a-zA-Zа-яА-ЯёЁіІїЇєЄ0-9_\-]+$/.test(nick)){err.textContent='Тільки букви, цифри, _ та -';return;}
+  err.textContent='';
+  const {db,doc,collection,query,where,getDocs,setDoc,serverTimestamp}=window._fb;
+  const q=query(collection(db,'players'),where('nickname','==',nick));
+  const res=await getDocs(q);
+  if(!res.empty){err.textContent='Нікнейм вже зайнятий';return;}
+  state.nickname=nick;
+  state.hp=MAX_HP;
+  state.ownedEquipment = [];
+  const ref=doc(db,'players',currentUser.uid);
+  await setDoc(ref,{...state,email:currentUser.email,uid:currentUser.uid,createdAt:serverTimestamp()});
+  startGame();
+}
+async function doLogout(){await window._fb.signOut(window._fb.auth);location.reload();}
+
+// ═══════════════════════════════════════════
+// GAME START
+// ═══════════════════════════════════════════
+function startGame(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('shell').style.display='flex';
+  if(currentUser&&currentUser.email===window._fb.ADMIN_EMAIL)document.getElementById('admin-nav-btn').style.display='block';
+  try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();const b=audioCtx.createBuffer(1,1,22050);const s=audioCtx.createBufferSource();s.buffer=b;s.connect(audioCtx.destination);s.start(0);}catch(e){}
+  checkStreak();
+  startGeoWatch();
+  loadGlobalZones();
+  loadGlobalAnomalies();
+  renderAll();
+  renderStreakBar();
+  setInterval(passiveUpdate,10000);
+  setInterval(updateRadar,500);
+  if('wakeLock' in navigator)navigator.wakeLock.request('screen').catch(()=>{});
+  document.getElementById('h-user').textContent='👤 '+state.nickname;
+  subscribeToTrades();
+  subscribeToFriendRequests();
+}
+
+// ═══════════════════════════════════════════
+// FIRESTORE SYNC
+// ═══════════════════════════════════════════
+let _savePending=false;
+async function saveState(){
+  if(!currentUser||_savePending)return;
+  _savePending=true;
+  const {db,doc,setDoc}=window._fb;
+  try{
+    const toSave={...state};
+    // limit fogVisited to last 500 points to avoid doc size issues
+    if(toSave.fogVisited&&toSave.fogVisited.length>500)toSave.fogVisited=toSave.fogVisited.slice(-500);
+    await setDoc(doc(db,'players',currentUser.uid),{...toSave,uid:currentUser.uid,email:currentUser.email},{merge:true});
+  }catch(e){console.error('save',e);}
+  _savePending=false;
+}
+
+async function loadGlobalZones(){
+  const {db,collection,getDocs}=window._fb;
+  try{
+    const snap=await getDocs(collection(db,'zones'));
+    state.zones=snap.docs.map(d=>({...d.data(),id:d.id}));
+    document.getElementById('map-zone-count').textContent=state.zones.length;
+    if(leafletMap)redrawZones();
+  }catch(e){}
+}
+async function loadGlobalAnomalies(){
+  const {db,collection,getDocs}=window._fb;
+  try{
+    const snap=await getDocs(collection(db,'anomalies'));
+    anomalies=snap.docs.map(d=>({...d.data(),id:d.id}));
+    if(leafletMap)anomalies.forEach(a=>{if(!a.found)renderAnomalyOnMap(a);});
+    document.getElementById('map-anom-count').textContent=anomalies.filter(a=>!a.found).length;
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════
+// GEO
+// ═══════════════════════════════════════════
+function startGeoWatch(){
+  if(!navigator.geolocation){setGps('error','❌ GPS не підтримується');return;}
+  setGps('wait','⏳ GPS...');
+  geoWatchId=navigator.geolocation.watchPosition(onGeoOk,onGeoErr,{enableHighAccuracy:true,timeout:20000,maximumAge:3000});
+}
+function onGeoOk(pos){
+  const la=pos.coords.latitude,ln=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+  userLat=la;userLng=ln;
+  setGps('on',`📍 ${la.toFixed(5)}, ${ln.toFixed(5)} ±${acc}м`);
+  document.getElementById('geo-blocked').style.display='none';
+  if(lastPos){
+    const d=haversine(lastPos[0],lastPos[1],la,ln);
+    if(d>=10&&d<400){
+      sessionDist+=d;state.totalDist+=d;
+      updateDistDisplay();
+      // fog of war — mark visited
+      state.fogVisited.push([la,ln]);
+      if(leafletMap)drawFogReveal(la,ln);
+    }
+  }
+  lastPos=[la,ln];
+  if(leafletMap){
+    if(mapMarker)mapMarker.setLatLng([la,ln]);
+    else mapMarker=L.marker([la,ln],{icon:L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#4488ff;border-radius:50%;border:2px solid #fff;box-shadow:0 0 10px #44f8"></div>',iconSize:[14,14]})}).addTo(leafletMap).bindPopup('Ти тут');
+  }
+  checkUserZone();
+}
+function onGeoErr(err){
+  if(err.code===1){setGps('error','🚫 GPS заблоковано');document.getElementById('geo-blocked').style.display='flex';}
+  else if(err.code===2){setGps('error','📡 Немає сигналу');}
+  else{setGps('error','⏱ Таймаут...');setTimeout(startGeoWatch,3000);}
+}
+function retryGeo(){document.getElementById('geo-blocked').style.display='none';if(geoWatchId!==null)navigator.geolocation.clearWatch(geoWatchId);startGeoWatch();}
+function skipGeo(){document.getElementById('geo-blocked').style.display='none';setGps('error','⚠ Демо GPS');userLat=50.45;userLng=30.52;}
+function setGps(st,txt){
+  const dot=document.getElementById('h-dot'),gps=document.getElementById('h-gps');
+  dot.className='h-dot'+(st==='on'?' on':st==='error'?' err':'');
+  gps.className='h-gps'+(st==='on'?' on':st==='error'?' err':'');
+  gps.textContent=txt;
+}
+
+// ═══════════════════════════════════════════
+// ZONE CHECK
+// ═══════════════════════════════════════════
+function checkUserZone(){
+  if(userLat===null)return;
+  let found=null;let maxIdx=-1;
+  for(const z of state.zones){
+    if(pointInZone(userLat,userLng,z)){
+      const idx=LEVELS.findIndex(l=>l.id===z.level);
+      if(idx>maxIdx){maxIdx=idx;found=z;}
+    }
+  }
+  const prev=currentZone?currentZone.id+currentZone.level:null;
+  currentZone=found;
+  const newId=found?found.id+found.level:null;
+  if(newId!==prev){
+    if(found){
+      const lvl=LEVELS.find(l=>l.id===found.level);
+      if(['red','black','deadly'].includes(found.level)){state.redZoneVisits++;speak(`Увага! ${found.name}. ${lvl.label}`,found.level);playAlarm(found.level);}
+    }
+  }
+  updateZoneBanner();
+}
+function updateZoneBanner(){
+  const lvl=currentZone?LEVELS.find(l=>l.id===currentZone.level):LEVELS[0];
+  const tag=document.getElementById('zone-tag');
+  document.getElementById('zone-label').textContent=lvl.label;
+  document.getElementById('zone-name-disp').textContent=currentZone?currentZone.name:'Поза зонами';
+  tag.style.color=lvl.color;tag.style.borderColor=lvl.color;
+  tag.style.boxShadow=['red','black','deadly'].includes(lvl.id)?`0 0 20px ${lvl.color}40`:'none';
+  tag.style.animation=['red','black','deadly'].includes(lvl.id)?'blink .6s infinite':'none';
+}
+
+// ═══════════════════════════════════════════
+// ANOMALIES / RADAR
+// ═══════════════════════════════════════════
+const ART_DETECT_RADIUS=160;
+
+function updateRadar(){
+  const canvas=document.getElementById('radar-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,64,64);
+  // bg
+  ctx.fillStyle='#030a07';ctx.fillRect(0,0,64,64);
+  // rings
+  ctx.strokeStyle='#0a2a1a';ctx.lineWidth=1;
+  [16,26,30].forEach(r=>{ctx.beginPath();ctx.arc(32,32,r,0,Math.PI*2);ctx.stroke();});
+  // crosshair
+  ctx.strokeStyle='#082010';ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(32,2);ctx.lineTo(32,62);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(2,32);ctx.lineTo(62,32);ctx.stroke();
+  ctx.setLineDash([]);
+  // sweep
+  const sweep=(Date.now()/1800)%(Math.PI*2);
+  const grad=ctx.createLinearGradient(32,32,32+30*Math.cos(sweep),32+30*Math.sin(sweep));
+  grad.addColorStop(0,'#00ff8800');grad.addColorStop(1,'#00ff8855');
+  ctx.strokeStyle=grad;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(32,32);ctx.lineTo(32+30*Math.cos(sweep),32+30*Math.sin(sweep));ctx.stroke();
+
+  let nearestDist=Infinity;let nearestA=null;
+  if(userLat!==null){
+    const hasDetector=state.equipment.detector==='detector_adv';
+    const artBonus=getEquippedBonusRadar();
+    const effectiveRadius=ART_DETECT_RADIUS*(hasDetector?1.5:1)*(1+artBonus/100);
+    anomalies.filter(a=>!a.found).forEach(a=>{
+      const d=haversine(userLat,userLng,a.lat,a.lng);
+      if(d<effectiveRadius*2.5){
+        const bearing=Math.atan2(a.lng-userLng,a.lat-userLat);
+        const r=Math.min(d/(effectiveRadius*2.5)*28,28);
+        const bx=32+r*Math.cos(bearing),by=32+r*Math.sin(bearing);
+        const pulse=0.6+0.4*Math.sin(Date.now()/400);
+        ctx.fillStyle=d<50?`rgba(255,136,0,${pulse})`:`rgba(255,230,51,${pulse})`;
+        ctx.beginPath();ctx.arc(bx,by,d<50?4:2.5,0,Math.PI*2);ctx.fill();
+      }
+      if(d<nearestDist){nearestDist=d;nearestA=a;}
+    });
+    if(nearestA){
+      const art=ARTIFACTS.find(x=>x.id===nearestA.type)||ARTIFACTS[0];
+      document.getElementById('radar-nearest').textContent=`${art.icon} ${art.name}`;
+      document.getElementById('radar-dist').textContent=nearestDist<1000?`${Math.round(nearestDist)}м`:`${(nearestDist/1000).toFixed(1)}км`;
+    }else{
+      document.getElementById('radar-nearest').textContent='Немає сигналу';
+      document.getElementById('radar-dist').textContent='Аномалій не виявлено';
+    }
+  }
+  // player dot
+  ctx.fillStyle='#4488ff';ctx.shadowColor='#4488ff';ctx.shadowBlur=6;
+  ctx.beginPath();ctx.arc(32,32,3.5,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function getEquippedBonusRadar(){let b=0;(state.equippedArtifacts||[]).forEach(i=>{const a=state.artifacts[i];if(a?.bonus?.radar)b+=a.bonus.radar;});return b;}
+function getEquippedBonusDoseShield(){let s=0;(state.equippedArtifacts||[]).forEach(i=>{const a=state.artifacts[i];if(a?.bonus?.doseShield)s+=a.bonus.doseShield;});return Math.min(s,0.85);}
+function getEquippedBonusScanXp(){let x=0;(state.equippedArtifacts||[]).forEach(i=>{const a=state.artifacts[i];if(a?.bonus?.scanXp)x+=a.bonus.scanXp;});return x;}
+function getEquippedBonusFindXp(){let x=0;(state.equippedArtifacts||[]).forEach(i=>{const a=state.artifacts[i];if(a?.bonus?.findXp)x+=a.bonus.findXp;});return x;}
+
+// ═══════════════════════════════════════════
+// SCANNING
+// ═══════════════════════════════════════════
+function startScan(e){
+  if(e)e.preventDefault();
+  if(measuring)return;
+  measuring=true;holdTime=0;lastAlertLvl=null;
+  document.getElementById('scan-btn').classList.add('pressing');
+  document.body.classList.add('scanning');
+  initAudio();
+  measureTimer=setInterval(()=>{
+    holdTime+=0.1;
+    const prog=Math.min(holdTime/3,1);
+    document.getElementById('prog-circle').style.strokeDashoffset=565-565*prog;
+    const lvl=currentZone?LEVELS.find(l=>l.id===currentZone.level):LEVELS[0];
+    const base=lvl.basePower;
+    const noise=(Math.random()-.5)*.12*base;
+    const warmup=Math.min(holdTime/2,1);
+    currentPower=Math.max(0,(base+noise)*warmup);
+    if(currentPower>peakPower)peakPower=currentPower;
+    if(currentPower>state.maxDose)state.maxDose=currentPower;
+    updateMeterDisplay();
+    doTickSound(lvl);
+    checkAlerts(lvl);
+    if(holdTime>=3&&prog>=1)tryFindArtifact(lvl);
+  },100);
+}
+
+function stopScan(){
+  if(!measuring)return;
+  measuring=false;
+  clearInterval(measureTimer);measureTimer=null;
+  document.getElementById('scan-btn').classList.remove('pressing');
+  document.body.classList.remove('scanning');
+  document.getElementById('prog-circle').style.strokeDashoffset=565;
+  state.totalScans++;
+  const lvl=currentZone?LEVELS.find(l=>l.id===currentZone.level):LEVELS[0];
+  const shield=getEquippedBonusDoseShield();
+  addDose(currentPower*0.05*(1-shield));
+  const bonusXp=getEquippedBonusScanXp();
+  gainXP(Math.round((2+bonusXp)*lvl.xpMul));
+  let decay=setInterval(()=>{currentPower*=.8;if(currentPower<.1){currentPower=0;clearInterval(decay);}updateMeterDisplay();},120);
+  checkAchievements();saveState();updateStatsDisplay();
+}
+
+function tryFindArtifact(lvl) {
+  if (!measuring) return;
+  clearInterval(measureTimer); measureTimer = null;
+  measuring = false;
+  document.getElementById('scan-btn').classList.remove('pressing');
+  document.body.classList.remove('scanning');
+  document.getElementById('prog-circle').style.strokeDashoffset = 565;
+
+  // Без зони — без артефактів
+  if (!currentZone) return;
+
+  // Знайти найближчу аномалію
+  let nearestAnomaly = null, nearestDist = Infinity;
+  if (userLat !== null) {
+    const hasDetector = state.equipment.detector === 'detector_adv';
+    const artBonus = getEquippedBonusRadar();
+    const effectiveRadius = ART_DETECT_RADIUS * (hasDetector ? 2 : 1) * (1 + artBonus / 100);
+    anomalies.filter(a => !a.found).forEach(a => {
+      const d = haversine(userLat, userLng, a.lat, a.lng);
+      if (d <= effectiveRadius && d < nearestDist) { nearestDist = d; nearestAnomaly = a; }
+    });
+  }
+  if (!nearestAnomaly) return;
+
+  // Пул за рівнем зони
+  const zid = currentZone.level; // використовуємо currentZone.level безпосередньо
+  const poolIds = ZONE_POOL[zid] || ZONE_POOL['safe'];
+  const rarityWeight = { common: 10, uncommon: 5, rare: 2, legendary: 1 };
+  const pool = poolIds.map(id => ARTIFACTS.find(a => a.id === id)).filter(Boolean);
+  const weighted = [];
+  pool.forEach(a => {
+    const w = rarityWeight[a.rarity] || 1;
+    for (let i = 0; i < w; i++) weighted.push(a);
+  });
+  if (!weighted.length) return;
+
+  // Шанс знахідки (з рукавицями +5%)
+  const gloveBonus = state.equipment.gloves ? 0.05 : 0;
+  if (Math.random() > 0.65 + gloveBonus) return;
+
+  const art = weighted[Math.floor(Math.random() * weighted.length)];
+
+  // Відмітити аномалію знайденою
+  nearestAnomaly.found = true;
+  markAnomalyFound(nearestAnomaly.id);
+  if (nearestAnomaly._marker) leafletMap?.removeLayer(nearestAnomaly._marker);
+  document.getElementById('map-anom-count').textContent = anomalies.filter(a => !a.found).length;
+
+  if (state.artifacts.length >= state.maxArtSlots) return;
+
+  state.artifacts.push({ ...art, foundAt: Date.now() });
+  state.totalArts++;
+  const bonusFindXp = getEquippedBonusFindXp();
+  gainXP(Math.round(10 * lvl.xpMul + bonusFindXp));
+  if (art.bonus?.hp) { state.hp = Math.min(MAX_HP, state.hp + art.bonus.hp); updateHpDisplay(); }
+
+  flash(art.rarity === 'legendary' ? '#cc44ff' : art.rarity === 'rare' ? '#4488ff' : art.rarity === 'uncommon' ? '#ffe633' : '#00ff88');
+  if (['rare','legendary'].includes(art.rarity)) {
+    speak(`Знахідка! ${art.name}!`, art.rarity);
+    playAlarm('yellow');
+    document.body.classList.add('shaking');
+    setTimeout(() => document.body.classList.remove('shaking'), 500);
+  }
+  showModal(`${art.icon} Знахідка!`,
+    `<b>${art.name}</b><br><span style="color:${art.rarity==='legendary'?'#cc44ff':art.rarity==='rare'?'#4488ff':art.rarity==='uncommon'?'#ffe633':'#446644'}">${art.rarity.toUpperCase()}</span><br><br>${art.desc}`,
+    [{label: 'Забрати', cls: 'confirm', fn: () => { closeModal(); renderInventory(); }}]
+  );
+  checkAchievements(); saveState(); updateStatsDisplay();
+}
+
+async function markAnomalyFound(id){if(!id)return;const{db,doc,updateDoc}=window._fb;try{await updateDoc(doc(db,'anomalies',id),{found:true});}catch(e){}}
+
+// ═══════════════════════════════════════════
+// DOSE / HP SYSTEM
+// ═══════════════════════════════════════════
+// dailyDose — "друга смужка HP" (0..250+)
+// DOSE_LIMIT = 150 мкПт — якщо перевищено:
+//   • кожен зайвий мкПт знімає 1 HP одразу
+//   • passiveUpdate (~кожні 10с) знімає HP пропорційно надлишку (~5 HP/год)
+// HP не знімається поки dailyDose <= DOSE_LIMIT
+
+const DOSE_LIMIT = 150;
+
+function addDose(amount) {
+  const shield = getEquippedBonusDoseShield();
+  const suit   = state.equipment.suit === 'suit_basic' ? 0.06 : 0;
+  const reduced = amount * (1 - shield) * (1 - suit);
+
+  const prevDose = state.dailyDose;
+  state.dailyDose = Math.max(0, state.dailyDose + reduced);
+
+  // Миттєве HP-пошкодження за щойно перевищений ліміт
+  if (state.dailyDose > DOSE_LIMIT) {
+    const prevExcess = Math.max(0, prevDose - DOSE_LIMIT);
+    const newExcess  = state.dailyDose - DOSE_LIMIT;
+    const dmg = newExcess - prevExcess; // лише нові мкПт понад ліміт
+    if (dmg > 0) {
+      state.hp = Math.max(0, state.hp - dmg);
+      updateHpDisplay();
+      if (dmg > 1) flash('#ff2200');
+    }
+  }
+  updateDoseDisplay();
+}
+
+function updateDoseDisplay(){
+  const pct=Math.min(state.dailyDose/250*100,100);
+  document.getElementById('dose-fill').style.width=pct+'%';
+  document.getElementById('dose-num').textContent=Math.round(state.dailyDose);
+  document.getElementById('dose-num2').textContent=Math.round(state.dailyDose);
+  document.getElementById('dose-fill2').style.width=pct+'%';
+  // Color dose bar
+  const fill=document.getElementById('dose-fill');
+  if(state.dailyDose>DOSE_LIMIT)fill.style.boxShadow='0 0 10px #ff220060';
+  else fill.style.boxShadow='none';
+}
+
+function updateHpDisplay(){
+  const pct=Math.min(state.hp/MAX_HP*100,100);
+  const col=state.hp>150?'var(--green)':state.hp>80?'var(--orange)':'var(--red)';
+  // inventory
+  const hpNumEl=document.getElementById('hp-num');
+  const hpFillEl=document.getElementById('hp-fill');
+  if(hpNumEl)hpNumEl.textContent=Math.round(state.hp);
+  if(hpFillEl){hpFillEl.style.width=pct+'%';hpFillEl.style.background=col;}
+  // strip on meter page
+  const strip=document.getElementById('hp-strip-fill');
+  const stripNum=document.getElementById('hp-strip-num');
+  if(strip){strip.style.width=pct+'%';strip.style.background=col;}
+  if(stripNum)stripNum.textContent=Math.round(state.hp);
+  // profile
+  const psHp=document.getElementById('ps-hp');
+  if(psHp)psHp.textContent=Math.round(state.hp);
+}
+
+// ═══════════════════════════════════════════
+// METER DISPLAY
+// ═══════════════════════════════════════════
+function updateMeterDisplay(){
+  const lvl=getLevelByPower(currentPower);
+  const big=currentPower>=1000;
+  document.getElementById('g-num').textContent=big?(currentPower/1000).toFixed(2):currentPower.toFixed(1);
+  document.getElementById('g-unit').textContent=big?'Пт/год':'мкПт/год';
+  document.getElementById('g-num').style.color=lvl.color;
+  document.getElementById('s-mkpt').textContent=currentPower.toFixed(1);
+  document.getElementById('s-peak').textContent=peakPower.toFixed(1);
+  const logP=Math.min(Math.log1p(currentPower)/Math.log1p(15000),1);
+  document.getElementById('g-arc').style.strokeDashoffset=346*(1-logP);
+  document.getElementById('g-needle').setAttribute('transform',`rotate(${-90+logP*180} 140 148)`);
+}
+function updateStatsDisplay(){
+  document.getElementById('s-arts').textContent=state.totalArts;
+  document.getElementById('s-dist').textContent=sessionDist>=1000?`${(sessionDist/1000).toFixed(1)}км`:`${Math.round(sessionDist)}м`;
+  document.getElementById('gold-disp').textContent=state.gold;
+  document.getElementById('mkt-gold').textContent=state.gold;
+}
+function updateDistDisplay(){
+  document.getElementById('s-dist').textContent=sessionDist>=1000?`${(sessionDist/1000).toFixed(1)}км`:`${Math.round(sessionDist)}м`;
+  const psd=document.getElementById('ps-dist');if(psd)psd.textContent=(state.totalDist/1000).toFixed(1);
+}
+function getLevelByPower(p){for(const l of LEVELS)if(p<l.max)return l;return LEVELS[LEVELS.length-1];}
+
+// ═══════════════════════════════════════════
+// XP / LEVEL
+// ═══════════════════════════════════════════
+function gainXP(amount){
+  state.xp+=amount;checkLevelUp();updateProfileDisplay();
+}
+function checkLevelUp(){
+  for(let i=RANK_XP.length-1;i>=0;i--){
+    if(state.xp>=RANK_XP[i]&&state.level<i+1){
+      state.level=i+1;
+      flash('#ffe633');
+      playAlarm('yellow');
+    }
+  }
+}
+function updateProfileDisplay(){
+  const lvl=Math.min(state.level,RANKS.length);
+  document.getElementById('pf-name').textContent=state.nickname||'АРБІТР';
+  document.getElementById('pf-rank').textContent=`${RANKS[lvl-1]||RANKS[0]} · РІВЕНЬ ${lvl}`;
+  const curT=RANK_XP[lvl-1]||0,nextT=RANK_XP[lvl]||9999;
+  const pct=Math.min((state.xp-curT)/(nextT-curT)*100,100);
+  document.getElementById('pf-xp').textContent=state.xp;
+  document.getElementById('pf-xp-next').textContent=nextT;
+  document.getElementById('xp-fill').style.width=pct+'%';
+  document.getElementById('ps-arts').textContent=state.totalArts;
+  document.getElementById('ps-earned').textContent=state.totalEarned;
+  document.getElementById('ps-hp').textContent=Math.round(state.hp);
+  updateDistDisplay();
+}
+
+// ═══════════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════════
+function checkStreak(){
+  const today=new Date().toDateString();
+  if(state.lastPlayDay===today)return;
+  const yesterday=new Date(Date.now()-86400000).toDateString();
+  if(state.lastPlayDay===yesterday){state.streak++;if(state.streak>state.maxStreak)state.maxStreak=state.streak;const b=state.streak*10;state.gold+=b;}
+  else{state.streak=1;}
+  state.lastPlayDay=today;
+  state.dailyDose=0;
+  updateDoseDisplay();
+}
+function renderStreakBar(){
+  const bar=document.getElementById('streak-bar');bar.innerHTML='';
+  const days=['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
+  for(let i=1;i<=7;i++){
+    const d=document.createElement('div');d.className='streak-day';
+    const ago=7-i;
+    d.textContent=days[(new Date(Date.now()-ago*86400000).getDay()+6)%7];
+    if(state.streak>=i)d.classList.add('done');
+    if(i===7)d.classList.add('today');
+    bar.appendChild(d);
+  }
+}
+
+// ═══════════════════════════════════════════
+// ACHIEVEMENTS
+// ═══════════════════════════════════════════
+function checkAchievements(){
+  for(const ach of ACHIEVEMENTS){
+    if(!state.achievements.includes(ach.id)&&ach.check(state)){
+      state.achievements.push(ach.id);flash('#ffe633');state.gold+=50;gainXP(50);
+    }
+  }
+  renderAchievements();
+}
+function renderAchievements(){
+  const grid=document.getElementById('ach-grid');if(!grid)return;
+  grid.innerHTML=ACHIEVEMENTS.map(a=>{
+    const done=state.achievements.includes(a.id);
+    return `<div class="ach-item ${done?'unlocked':'locked'}"><span class="ach-icon">${a.icon}</span><div class="ach-name">${a.name}</div><div class="ach-done">${done?'✅ Виконано':a.desc}</div></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════
+function checkAlerts(lvl){
+  if(lvl.id===lastAlertLvl)return;
+  if(lvl.id==='safe'||lvl.id==='discipline'){lastAlertLvl=lvl.id;return;}
+  lastAlertLvl=lvl.id;
+  const msgs={yellow:'warn',orange:'warn',red:'danger',black:'danger',deadly:'deadly'};
+  flash(lvl.color);
+  if(['red','black','deadly'].includes(lvl.id)){playAlarm(lvl.id);speak(`Критично! ${lvl.label}`,lvl.id);document.body.classList.add('shaking');setTimeout(()=>document.body.classList.remove('shaking'),600);}
+}
+
+// ═══════════════════════════════════════════
+// AUDIO — improved Geiger sound (FIX #8)
+// ═══════════════════════════════════════════
+function initAudio(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}if(audioCtx?.state==='suspended')audioCtx.resume();}
+
+function doTickSound(lvl){
+  const interval=1000/lvl.rate;
+  const now=Date.now();
+  if(now-lastTickMs<interval)return;
+  lastTickMs=now;
+  initAudio();if(!audioCtx)return;
+  try{
+    // Realistic Geiger click: sharp transient with resonance
+    const sampleRate=audioCtx.sampleRate;
+    const clickLen=Math.floor(sampleRate*0.008);  // 8ms
+    const decayLen=Math.floor(sampleRate*0.04);   // 40ms tail
+    const totalLen=clickLen+decayLen;
+    const buf=audioCtx.createBuffer(1,totalLen,sampleRate);
+    const d=buf.getChannelData(0);
+
+    // Initial sharp click
+    for(let i=0;i<clickLen;i++){
+      d[i]=(Math.random()*2-1)*Math.exp(-i/(clickLen*0.3));
+    }
+    // Decaying hiss tail
+    for(let i=0;i<decayLen;i++){
+      d[clickLen+i]=(Math.random()*2-1)*0.15*Math.exp(-i/(decayLen*0.4));
+    }
+
+    const src=audioCtx.createBufferSource();
+    src.buffer=buf;
+
+    // Bandpass filter for tube-like quality
+    const bp=audioCtx.createBiquadFilter();
+    bp.type='bandpass';
+    bp.frequency.value=1800+Math.random()*600;
+    bp.Q.value=0.8;
+
+    const gain=audioCtx.createGain();
+    const vol=Math.min(0.25+currentPower/20000,1.0);
+    gain.gain.value=vol;
+
+    src.connect(bp);bp.connect(gain);gain.connect(audioCtx.destination);
+    src.start();
+  }catch(e){}
+}
+
+function playAlarm(levelId){
+  initAudio();if(!audioCtx)return;
+  const seqs={yellow:[[880,.12],[0,.05],[660,.12]],orange:[[1100,.1],[0,.04],[880,.1],[0,.04],[660,.14]],red:[[1500,.07],[0,.03],[1500,.07],[0,.03],[800,.22]],black:[[200,.22],[400,.16],[200,.22]],deadly:[[150,.3],[300,.22],[150,.3],[600,.16]]};
+  const seq=seqs[levelId]||[];let t=audioCtx.currentTime;
+  seq.forEach(([f,dur])=>{if(f===0){t+=dur;return;}const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=f;o.type='sawtooth';g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+dur);t+=dur+.02;});
+}
+function speak(text,levelId){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='uk-UA';u.rate=levelId==='deadly'?1.4:1;u.pitch=levelId==='deadly'?.5:1;u.volume=1;
+  window.speechSynthesis.speak(u);
+}
+
+// ═══════════════════════════════════════════
+// INVENTORY — FIX #5: unequip returns to bag
+// ═══════════════════════════════════════════
+function renderInventory(){
+  // Equipped artifact slots
+  const eGrid=document.getElementById('art-equip-grid');
+  if(eGrid){
+    eGrid.innerHTML='';
+    for(let i=0;i<4;i++){
+      const idx=state.equippedArtifacts?.[i];
+      const a=(idx!==undefined&&idx!==null&&idx<state.artifacts.length)?state.artifacts[idx]:null;
+      const div=document.createElement('div');
+      div.className='art-equip-slot'+(a?' filled':'');
+      div.innerHTML=`<span class="slot-num">СЛОТ ${i+1}</span>`;
+      if(a){
+        div.innerHTML+=`<span class="art-icon">${a.icon}</span><span class="art-ename">${a.name}</span>`;
+        if(a.bonus){const b=Object.entries(a.bonus).map(([k,v])=>`${k}:${v}`).join(',');div.innerHTML+=`<span class="art-bonus">${b}</span>`;}
+        div.onclick=()=>unequipArtifact(i);
+        div.title='Натисни щоб зняти';
+      }else{
+        div.innerHTML+=`<span style="font-size:22px;color:var(--border)">+</span><span class="art-ename" style="color:var(--text-dim)">Порожній</span>`;
+      }
+      eGrid.appendChild(div);
+    }
+  }
+
+  // Equipment slots
+  const grid=document.getElementById('equip-grid');
+  if(grid)grid.innerHTML=EQUIPMENT_SLOTS.map(slot=>{
+    const item=state.equipment[slot.id];
+    const si=item?SHOP_ITEMS.find(s=>s.id===item):null;
+    return `<div class="equip-slot ${item?'filled':''}" onclick="equipSlotClick('${slot.id}')">
+      ${si?`<div class="equip-rarity r-${si.rarity}"></div>`:''}
+      <span class="equip-icon">${si?si.icon:slot.icon}</span>
+      <div class="equip-name">${si?si.name:slot.name}</div>
+      <div class="equip-stat">${si?si.stat:slot.empty}</div>
+    </div>`;
+  }).join('');
+
+  // Bag
+  const agrid=document.getElementById('art-grid');if(!agrid)return;
+  document.getElementById('art-count').textContent=state.artifacts.length;
+  document.getElementById('art-max').textContent=state.maxArtSlots;
+  agrid.innerHTML='';
+  for(let i=0;i<state.maxArtSlots;i++){
+    const a=state.artifacts[i];
+    const isEquipped=(state.equippedArtifacts||[]).includes(i);
+    const div=document.createElement('div');
+    div.className='art-slot'+(a?'':' empty');
+    if(a){
+      div.innerHTML=`<span class="art-icon-big">${a.icon}</span><span class="art-val">${isEquipped?'⚡':'₴'+a.value}</span>`;
+      div.style.borderColor=isEquipped?'var(--yellow)':'';
+      div.onclick=()=>artifactClick(i);
+    }
+    agrid.appendChild(div);
+  }
+}
+
+// Ініціалізація при старті — додати до loadUser/confirmNick:
+// if (!Array.isArray(state.ownedEquipment)) state.ownedEquipment = [];
+
+function equipSlotClick(slotId) {
+  const item = state.equipment[slotId];
+  if (item) {
+    const si = SHOP_ITEMS.find(s => s.id === item);
+    showModal(`${si?.icon||'?'} ${si?.name||slotId}`,
+      `${si?.desc||''}<br><br>Характеристика: <b>${si?.stat||'-'}</b><br><br>Зняти предмет? Він повернеться у інвентар.`,
+      [{label: 'Зняти', cls: 'danger', fn: () => {
+        state.equipment[slotId] = null;
+        // Повертаємо у ownedEquipment якщо ще немає
+        if (!state.ownedEquipment) state.ownedEquipment = [];
+        if (!state.ownedEquipment.includes(item)) state.ownedEquipment.push(item);
+        saveState(); renderInventory(); closeModal();
+      }},
+      {label: 'Скасувати', cls: '', fn: closeModal}]
+    );
+  } else {
+    // Показати список доступних предметів для цього слоту
+    const owned = (state.ownedEquipment || []).filter(id => {
+      const si = SHOP_ITEMS.find(s => s.id === id);
+      return si && si.slot === slotId;
+    });
+    if (!owned.length) {
+      showModal('Слот порожній', 'Купи спорядження у Ринку → Купити', [{label:'Ок',cls:'',fn:closeModal}]);
+      return;
+    }
+    const btns = owned.map(id => {
+      const si = SHOP_ITEMS.find(s => s.id === id);
+      return {label: `${si.icon} ${si.name}`, cls: 'confirm', fn: () => {
+        state.equipment[slotId] = id;
+        state.ownedEquipment = (state.ownedEquipment||[]).filter(x => x !== id);
+        if (id === 'backpack_large') state.maxArtSlots = 12;
+        saveState(); renderInventory(); closeModal();
+      }};
+    });
+    btns.push({label: 'Скасувати', cls: '', fn: closeModal});
+    showModal('Вибери предмет', `Слот: ${slotId}`, btns);
+  }
+}
+
+function buyItem(itemId) {
+  const item = SHOP_ITEMS.find(s => s.id === itemId); if (!item) return;
+  if (state.gold < item.price) {
+    showModal('Недостатньо ₴', `Потрібно ₴${item.price}, є ₴${state.gold}.`, [{label:'Ок',cls:'',fn:closeModal}]);
+    return;
+  }
+  // Beer — consumable
+  if (item.slot === 'consume' && item.id === 'beer') {
+    showModal('🍺 Пиво', `Вжити пиво і очистити 200 мкПт дози за ₴${item.price}?`, [
+      {label: 'Випити!', cls: 'confirm', fn: () => {
+        state.gold -= item.price;
+        state.dailyDose = Math.max(0, state.dailyDose - 200);
+        updateDoseDisplay(); updateStatsDisplay(); saveState();
+        flash('#88ff88'); closeModal(); renderMarketBuy();
+      }},
+      {label: 'Скасувати', cls: '', fn: closeModal}
+    ]);
+    return;
+  }
+  showModal(`Купити: ${item.name}`, `${item.desc}<br><br>Характеристика: <b>${item.stat}</b><br>Ціна: <b>₴${item.price}</b>`, [
+    {label: 'Купити', cls: 'confirm', fn: () => {
+      state.gold -= item.price;
+      // Зберігаємо у ownedEquipment та одразу екіпіруємо
+      if (!state.ownedEquipment) state.ownedEquipment = [];
+      if (!state.ownedEquipment.includes(item.id)) state.ownedEquipment.push(item.id);
+      state.equipment[item.slot] = item.id;
+      if (item.slot === 'backpack') state.maxArtSlots = 12;
+      saveState(); renderInventory(); renderMarketBuy(); updateStatsDisplay();
+      closeModal();
+    }},
+    {label: 'Скасувати', cls: '', fn: closeModal}
+  ]);
+}
+
+function artifactClick(idx){
+  const a=state.artifacts[idx];if(!a)return;
+  const isEquipped=(state.equippedArtifacts||[]).includes(idx);
+  const btns=[];
+  if(isEquipped){
+    btns.push({label:'Зняти ⚡',cls:'danger',fn:()=>{unequipArtifact((state.equippedArtifacts||[]).indexOf(idx));closeModal();}});
+  }else{
+    btns.push({label:'Екіпірувати',cls:'confirm',fn:()=>{equipArtifact(idx);closeModal();}});
+  }
+  btns.push({label:'Продати ₴'+a.value,cls:'danger',fn:()=>{
+    if(isEquipped)unequipArtifact((state.equippedArtifacts||[]).indexOf(idx));
+    state.artifacts.splice(idx,1);
+    state.equippedArtifacts=(state.equippedArtifacts||[]).map(i=>i>idx?i-1:i).filter(i=>i>=0&&i<state.artifacts.length);
+    state.gold+=a.value;state.totalEarned+=a.value;
+    gainXP(5);checkAchievements();saveState();renderInventory();updateStatsDisplay();
+    closeModal();
+  }});
+  btns.push({label:'Скасувати',cls:'',fn:closeModal});
+  showModal(`${a.icon} ${a.name}`,
+    `Рідкість: <b>${a.rarity.toUpperCase()}</b><br>Вартість: <b>₴${a.value}</b><br><br>${a.desc}${a.bonus?'<br><b>Бонус: '+JSON.stringify(a.bonus)+'</b>':''}`,
+    btns
+  );
+}
+
+function equipArtifact(idx){
+  if(!state.equippedArtifacts)state.equippedArtifacts=[];
+  if(state.equippedArtifacts.includes(idx))return;
+  if(state.equippedArtifacts.length>=4){showModal('Ліміт','Можна екіпірувати лише 4 артефакти. Спочатку зніми один.',[{label:'Ок',cls:'',fn:closeModal}]);return;}
+  state.equippedArtifacts.push(idx);
+  saveState();renderInventory();
+  const a=state.artifacts[idx];
+  if(a.bonus?.hp){state.hp=Math.min(MAX_HP,state.hp+a.bonus.hp);updateHpDisplay();}
+}
+
+// FIX #5: unequip — artifact stays in bag array, just removed from equippedArtifacts
+function unequipArtifact(slotPos){
+  if(!state.equippedArtifacts)return;
+  state.equippedArtifacts.splice(slotPos,1);
+  saveState();renderInventory();
+}
+
+// ═══════════════════════════════════════════
+// MARKET + BEER (FIX #7)
+// ═══════════════════════════════════════════
+function mktTab(tab,btn){
+  document.querySelectorAll('.mkt-tab').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  document.getElementById('mkt-sell-list').style.display=tab==='sell'?'flex':'none';
+  document.getElementById('mkt-buy-list').style.display=tab==='buy'?'flex':'none';
+  document.getElementById('mkt-cases-list').style.display=tab==='cases'?'grid':'none';
+  if(tab==='sell')renderMarketSell();
+  if(tab==='buy')renderMarketBuy();
+  if(tab==='cases')renderMarketCases();
+}
+function renderMarketSell(){
+  const list=document.getElementById('mkt-sell-list');
+  if(!state.artifacts.length){list.innerHTML='<div style="color:var(--text-dim);font-size:11px;padding:20px;text-align:center">Немає артефактів.<br>Знаходь їх скануванням.</div>';return;}
+  list.innerHTML=state.artifacts.map((a,i)=>`<div class="mkt-item" onclick="sellArtifact(${i})">
+    <span class="mkt-item-icon">${a.icon}</span>
+    <div class="mkt-item-info"><div class="mkt-item-name">${a.name}</div><div class="mkt-item-desc">${a.desc}</div><span class="mkt-item-rarity rare-${a.rarity[0]}">${a.rarity.toUpperCase()}</span></div>
+    <div class="mkt-item-price"><div class="mkt-price">₴${a.value}</div><div class="mkt-price-lbl">ПРОДАТИ</div></div>
+  </div>`).join('');
+}
+
+function renderMarketBuy() {
+  const list = document.getElementById('mkt-buy-list');
+  list.innerHTML = SHOP_ITEMS.map(item => {
+    const owned = item.slot !== 'consume' && (
+      state.equipment[item.slot] === item.id ||
+      (state.ownedEquipment || []).includes(item.id)
+    );
+    return `<div class="mkt-item" onclick="${owned ? '' : "buyItem('" + item.id + "')"}">
+      <span class="mkt-item-icon">${item.icon}</span>
+      <div class="mkt-item-info">
+        <div class="mkt-item-name">${item.name} ${owned ? '✅' : ''}</div>
+        <div class="mkt-item-desc">${item.desc}</div>
+        <span class="mkt-item-rarity rare-${item.rarity[0]}">${item.stat}</span>
+      </div>
+      <div class="mkt-item-price">
+        <div class="mkt-price" style="${owned ? 'color:var(--green-dim)' : ''}">₴${item.price}</div>
+        <div class="mkt-price-lbl">${owned ? 'МАЄШ' : 'КУПИТИ'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMarketCases(){
+  document.getElementById('mkt-cases-list').innerHTML=CASES.map(c=>`<div class="case-card" onclick="openCaseShop('${c.id}')">
+    <span class="case-icon">${c.icon}</span>
+    <div class="case-name">${c.name}</div>
+    <div class="case-desc">${c.desc}</div>
+    <div class="case-price">${c.priceReal?'💬 ЗАПИТ':('₴'+c.price)}</div>
+    <div class="case-price-sub">${c.priceReal?'Через адміна':'Внутрішня валюта'}</div>
+  </div>`).join('');
+}
+function sellArtifact(idx){
+  const a=state.artifacts[idx];if(!a)return;
+  const isEquipped=(state.equippedArtifacts||[]).includes(idx);
+  if(isEquipped)unequipArtifact((state.equippedArtifacts||[]).indexOf(idx));
+  state.artifacts.splice(idx,1);
+  state.equippedArtifacts=(state.equippedArtifacts||[]).map(i=>i>idx?i-1:i).filter(i=>i>=0&&i<state.artifacts.length);
+  state.gold+=a.value;state.totalEarned+=a.value;
+  gainXP(3);checkAchievements();saveState();renderMarketSell();updateStatsDisplay();
+}
+
+function openCaseShop(caseId){
+  const c=CASES.find(x=>x.id===caseId);if(!c)return;
+  if(c.priceReal){showModal(`📦 ${c.name}`,`Цей кейс через адміністратора.`,[{label:'Зрозуміло',cls:'',fn:closeModal}]);return;}
+  if(state.gold<c.price){showModal('Недостатньо ₴',`Потрібно ₴${c.price}, є ₴${state.gold}.`,[{label:'Ок',cls:'',fn:closeModal}]);return;}
+  showModal(`📦 ${c.name}`,`Відкрити за ₴${c.price}?`,[
+    {label:'ВІДКРИТИ',cls:'confirm',fn:()=>{state.gold-=c.price;closeModal();openCase(c);}},
+    {label:'Скасувати',cls:'',fn:closeModal}
+  ]);
+}
+function openCase(c){
+  const overlay=document.getElementById('case-overlay');overlay.style.display='flex';
+  document.getElementById('case-open-box').innerHTML=`<div class="case-open-icon">${c.icon}</div><div class="case-open-name">${c.name}</div><div class="case-open-desc">${c.desc}</div><button class="case-open-btn" onclick="revealCase('${c.id}')">▶ ВІДКРИТИ</button>`;
+}
+function revealCase(caseId){
+  const c=CASES.find(x=>x.id===caseId);
+  const pool=c.pool.map(id=>ARTIFACTS.find(a=>a.id===id)).filter(Boolean);
+  const art=pool[Math.floor(Math.random()*pool.length)];
+  const rc={common:'#446644',uncommon:'#ffe633',rare:'#4488ff',legendary:'#cc44ff'};
+  document.getElementById('case-open-box').innerHTML=`<div class="case-result-icon">${art.icon}</div><div class="case-result-rarity" style="color:${rc[art.rarity]}">${art.rarity.toUpperCase()}</div><div class="case-result-name" style="color:${rc[art.rarity]}">${art.name}</div><div class="case-result-desc">${art.desc}</div><button class="case-open-btn" onclick="collectCase('${art.id}')">ЗАБРАТИ</button>`;
+  flash(rc[art.rarity]);
+  if(art.rarity==='legendary'||art.rarity==='rare'){playAlarm('yellow');document.body.classList.add('shaking');setTimeout(()=>document.body.classList.remove('shaking'),600);}
+}
+function collectCase(artId){
+  const art=ARTIFACTS.find(a=>a.id===artId);
+  document.getElementById('case-overlay').style.display='none';
+  if(state.artifacts.length>=state.maxArtSlots)return;
+  state.artifacts.push({...art,foundAt:Date.now()});
+  state.totalArts++;gainXP(15);checkAchievements();saveState();renderInventory();updateStatsDisplay();
+}
+
+// ═══════════════════════════════════════════
+// FRIENDS
+// ═══════════════════════════════════════════
+async function searchFriend(){
+  const nick=document.getElementById('friend-search-input').value.trim();
+  if(!nick)return;
+  const {db,collection,query,where,getDocs}=window._fb;
+  const res=document.getElementById('friend-search-result');
+  res.innerHTML='<div style="color:var(--text-dim);font-size:10px">Пошук...</div>';
+  try{
+    const q=query(collection(db,'players'),where('nickname','==',nick));
+    const snap=await getDocs(q);
+    if(snap.empty){res.innerHTML='<div style="color:#663300;font-size:10px">Гравця не знайдено</div>';return;}
+    const p=snap.docs[0].data();const uid=snap.docs[0].id;
+    if(uid===currentUser.uid){res.innerHTML='<div style="color:#663300;font-size:10px">Це ти 😄</div>';return;}
+    const alreadyFriend=(state.friends||[]).includes(uid);
+    res.innerHTML=`<div class="friend-item">
+      <div class="friend-avatar">🧪</div>
+      <div class="friend-info"><div class="friend-name">${p.nickname}</div><div class="friend-rank">${RANKS[(p.level||1)-1]||RANKS[0]} · ${p.level||1} рівень</div></div>
+      <div class="friend-btns">${alreadyFriend?'<span style="color:var(--green-dim);font-size:9px">✅ Друг</span>':`<button class="fbtn" onclick="sendFriendReq('${uid}','${p.nickname}')">+ Друг</button>`}
+      <button class="fbtn" onclick="viewProfile('${uid}')">👁</button></div>
+    </div>`;
+  }catch(e){res.innerHTML='<div style="color:var(--red);font-size:10px">Помилка</div>';}
+}
+async function sendFriendReq(toUid,toNick){
+  const {db,collection,addDoc,serverTimestamp}=window._fb;
+  try{
+    await addDoc(collection(db,'friend_requests'),{from:currentUser.uid,fromNick:state.nickname,to:toUid,toNick,status:'pending',createdAt:serverTimestamp()});
+    document.getElementById('friend-search-result').innerHTML='<div style="color:var(--green-dim);font-size:10px">✅ Запит надіслано</div>';
+  }catch(e){alert('Помилка: '+e.message);}
+}
+function subscribeToFriendRequests(){
+  if(!currentUser)return;
+  const {db,collection,query,where,onSnapshot}=window._fb;
+  const q=query(collection(db,'friend_requests'),where('to','==',currentUser.uid),where('status','==','pending'));
+  onSnapshot(q,snap=>{
+    const list=document.getElementById('friend-requests-list');if(!list)return;
+    if(snap.empty){list.innerHTML='<div style="color:var(--text-dim);font-size:10px;padding:8px">Немає запитів</div>';return;}
+    list.innerHTML=snap.docs.map(d=>{const r=d.data();return `<div class="friend-item"><div class="friend-avatar">🧪</div><div class="friend-info"><div class="friend-name">${r.fromNick}</div><div class="friend-rank">Хоче дружити</div></div><div class="friend-btns"><button class="fbtn" onclick="acceptFriendReq('${d.id}','${r.from}','${r.fromNick}')">✅</button><button class="fbtn danger" onclick="declineFriendReq('${d.id}')">✕</button></div></div>`;}).join('');
+  });
+}
+async function acceptFriendReq(reqId,fromUid,fromNick){
+  const {db,doc,updateDoc,arrayUnion}=window._fb;
+  try{
+    await updateDoc(doc(db,'friend_requests',reqId),{status:'accepted'});
+    await updateDoc(doc(db,'players',currentUser.uid),{friends:arrayUnion(fromUid)});
+    await updateDoc(doc(db,'players',fromUid),{friends:arrayUnion(currentUser.uid)});
+    if(!state.friends)state.friends=[];state.friends.push(fromUid);
+    renderFriends();
+  }catch(e){alert('Помилка: '+e.message);}
+}
+async function declineFriendReq(reqId){const {db,doc,updateDoc}=window._fb;await updateDoc(doc(db,'friend_requests',reqId),{status:'declined'});}
+async function renderFriends(){
+  const list=document.getElementById('friends-list');if(!list)return;
+  if(!(state.friends||[]).length){list.innerHTML='<div style="color:var(--text-dim);font-size:10px;padding:8px">Немає друзів.</div>';return;}
+  const {db,doc,getDoc}=window._fb;
+  const html=[];
+  for(const uid of state.friends){
+    try{const snap=await getDoc(doc(db,'players',uid));if(!snap.exists())continue;const p=snap.data();html.push(`<div class="friend-item"><div class="friend-avatar">🧪</div><div class="friend-info"><div class="friend-name">${p.nickname}</div><div class="friend-rank">${RANKS[(p.level||1)-1]||RANKS[0]} · lv${p.level||1} · ₴${p.gold||0}</div></div><div class="friend-btns"><button class="fbtn" onclick="viewProfile('${uid}')">👁</button><button class="fbtn" onclick="openTradeWith('${uid}','${p.nickname}')">🔄</button><button class="fbtn danger" onclick="removeFriend('${uid}','${p.nickname}')">✕</button></div></div>`);}catch(e){}
+  }
+  list.innerHTML=html.join('')||'<div style="color:var(--text-dim);font-size:10px;padding:8px">Помилка</div>';
+}
+async function removeFriend(uid,nick){
+  const {db,doc,updateDoc}=window._fb;
+  showModal('Видалити друга?',`Видалити ${nick}?`,[{label:'Видалити',cls:'danger',fn:async()=>{
+    state.friends=(state.friends||[]).filter(f=>f!==uid);
+    await updateDoc(doc(db,'players',currentUser.uid),{friends:state.friends});
+    renderFriends();closeModal();
+  }},{label:'Скасувати',cls:'',fn:closeModal}]);
+}
+async function viewProfile(uid){
+  const {db,doc,getDoc}=window._fb;
+  try{const snap=await getDoc(doc(db,'players',uid));if(!snap.exists()){showModal('Помилка','Гравця не знайдено',[]);return;}const p=snap.data();const lvl=Math.min(p.level||1,RANKS.length);showModal(`👤 ${p.nickname}`,`Ранг: <b>${RANKS[lvl-1]||RANKS[0]} · ${lvl} рівень</b><br>XP: <b>${p.xp||0}</b><br>Баланс: <b>₴${p.gold||0}</b><br>Артефактів: <b>${p.totalArts||0}</b><br>Пройдено: <b>${((p.totalDist||0)/1000).toFixed(1)} км</b>`,[{label:'Закрити',cls:'',fn:closeModal}]);}catch(e){}
+}
+function openTradeWith(uid,nick){
+  if(!state.artifacts.length){showModal('Немає артефактів','Нічого запропонувати.',[{label:'Ок',cls:'',fn:closeModal}]);return;}
+  const opts=state.artifacts.map((a,i)=>`<option value="${i}">${a.icon} ${a.name} (₴${a.value})</option>`).join('');
+  showModal(`🔄 Трейд з ${nick}`,`<select id="trade-art-sel" style="width:100%;background:#020806;border:1px solid var(--border);color:var(--green);padding:6px;font-family:Share Tech Mono;font-size:11px;margin:8px 0">${opts}</select><br><input id="trade-req" placeholder="що хочеш" style="width:100%;background:#020806;border:1px solid var(--border);color:var(--green);padding:6px;font-family:Share Tech Mono;font-size:11px">`,
+    [{label:'Надіслати',cls:'confirm',fn:()=>sendTrade(uid,nick)},{label:'Скасувати',cls:'',fn:closeModal}]);
+}
+async function sendTrade(toUid,toNick){
+  const idx=parseInt(document.getElementById('trade-art-sel').value);const req=document.getElementById('trade-req').value.trim();
+  const art=state.artifacts[idx];if(!art){closeModal();return;}
+  const {db,collection,addDoc,serverTimestamp}=window._fb;
+  try{await addDoc(collection(db,'trades'),{from:currentUser.uid,fromNick:state.nickname,to:toUid,toNick,offer:{...art,artIdx:idx},request:req,status:'pending',createdAt:serverTimestamp()});closeModal();}catch(e){alert('Помилка: '+e.message);}
+}
+
+function subscribeToTrades(){
+  if(!currentUser)return;
+  const {db,collection,query,where,onSnapshot}=window._fb;
+  const q=query(collection(db,'trades'),where('to','==',currentUser.uid),where('status','==','pending'));
+  onSnapshot(q,snap=>{
+    const list=document.getElementById('trade-list');if(!list)return;
+    if(snap.empty){list.innerHTML='<div style="color:var(--text-dim);font-size:10px;padding:8px">Немає пропозицій</div>';return;}
+    list.innerHTML=snap.docs.map(d=>{
+      const t=d.data();
+      _tradeOffers.set(d.id, t.offer);
+      return `<div class="trade-item"><div class="trade-info"><div class="trade-from">Від: <b>${t.fromNick}</b></div>Пропонує: ${t.offer.icon} <b>${t.offer.name}</b> (₴${t.offer.value})<br>Хоче: ${t.request||'(будь-що)'}</div><div class="friend-btns" style="flex-direction:column;gap:4px"><button class="fbtn" onclick="acceptTrade('${d.id}','${t.from}')">✅</button><button class="fbtn danger" onclick="declineTrade('${d.id}')">✕</button></div></div>`;
+    }).join('');
+  });
+}
+
+async function acceptTrade(tradeId,fromUid){
+  const offer=_tradeOffers.get(tradeId);
+  if(!offer){showModal('Помилка','Дані трейду не знайдено',[{label:'Ок',cls:'',fn:closeModal}]);return;}
+  const {db,doc,updateDoc,getDoc}=window._fb;
+  try{
+    if(state.artifacts.length>=state.maxArtSlots){showModal('Рюкзак повний','Звільни місце.',[{label:'Ок',cls:'',fn:closeModal}]);return;}
+    const artData={...offer};delete artData.artIdx;
+    state.artifacts.push(artData);
+    const senderSnap=await getDoc(doc(db,'players',fromUid));
+    if(senderSnap.exists()){const sd=senderSnap.data();const na=(sd.artifacts||[]).filter((_,i)=>i!==offer.artIdx);await updateDoc(doc(db,'players',fromUid),{artifacts:na});}
+    await updateDoc(doc(db,'trades',tradeId),{status:'accepted'});
+    saveState();renderInventory();
+  }catch(e){alert('Помилка: '+e.message);}
+}
+
+async function declineTrade(tradeId){const {db,doc,updateDoc}=window._fb;await updateDoc(doc(db,'trades',tradeId),{status:'declined'});}
+
+// ═══════════════════════════════════════════
+// ADMIN PANEL — FIX #2: Select by list
+// ═══════════════════════════════════════════
+async function adminLoadPlayers(){
+  const {db,collection,getDocs}=window._fb;
+  const el=document.getElementById('admin-players-list');
+  el.innerHTML='<div style="color:var(--text-dim);font-size:9px">Завантаження...</div>';
+  try{
+    const snap=await getDocs(collection(db,'players'));
+    el.innerHTML='';
+    snap.docs.forEach(d=>{
+      const p=d.data();
+      const div=document.createElement('div');
+      div.className='player-list-item';
+      div.innerHTML=`<span style="color:${p.banned?'var(--red)':'var(--green)'}">${p.banned?'🚫':''} ${p.nickname||'?'}</span><span style="flex:1;color:var(--text-dim)">₴${p.gold||0} · lv${p.level||1}</span><span style="color:var(--text-dim);font-size:9px">${(p.email||'').slice(0,18)}</span>`;
+      div.onclick=()=>{
+        document.querySelectorAll('.player-list-item').forEach(x=>x.classList.remove('selected'));
+        div.classList.add('selected');
+        adminSelectedPlayer={id:d.id,data:p};
+        document.getElementById('admin-selected-nick').textContent=p.nickname||d.id;
+      };
+      el.appendChild(div);
+    });
+  }catch(e){el.innerHTML='Помилка: '+e.message;}
+}
+
+function adminDrawZone(type) {
+  if (!leafletMap) { showPage('map', document.querySelector('[data-page=map]')); setTimeout(() => adminDrawZone(type), 600); return; }
+  adminDrawMode = type; adminDrawPoints = [];
+  if (adminCircleMarker) { leafletMap.removeLayer(adminCircleMarker); adminCircleMarker = null; }
+  if (adminPolyline) { leafletMap.removeLayer(adminPolyline); adminPolyline = null; }
+  adminPolyMarkers.forEach(m => leafletMap.removeLayer(m)); adminPolyMarkers = [];
+  document.getElementById('draw-banner').style.display = 'block';
+  document.getElementById('az-finish-btn').style.display = type === 'polygon' ? 'inline-block' : 'none';
+  document.getElementById('az-info').textContent = type === 'circle'
+    ? 'Клік — центр кола. Ще клік — радіус.'
+    : 'Клікай точки. Кнопка ✅ Зберегти — завершити.';
+  showPage('map', document.querySelector('[data-page=map]'));
+}
+
+function adminFinishPolygon() {
+  if (adminDrawMode !== 'polygon' || adminDrawPoints.length < 3) {
+    document.getElementById('az-info').textContent = '❌ Потрібно мінімум 3 точки';
+    return;
+  }
+  adminConfirmPolygonZone([...adminDrawPoints]);
+  adminCancelDraw();
+}
+
+function adminCancelDraw() {
+  adminDrawMode = null; adminDrawPoints = [];
+  if (adminCircleMarker) { leafletMap?.removeLayer(adminCircleMarker); adminCircleMarker = null; }
+  if (adminPolyline) { leafletMap?.removeLayer(adminPolyline); adminPolyline = null; }
+  adminPolyMarkers.forEach(m => leafletMap?.removeLayer(m)); adminPolyMarkers = [];
+  document.getElementById('draw-banner').style.display = 'none';
+  document.getElementById('az-info').textContent = 'Скасовано.';
+  const fb = document.getElementById('az-finish-btn');
+  if (fb) fb.style.display = 'none';
+}
+
+function adminPlaceAnomaly() {
+  adminDrawMode = 'anomaly';
+  document.getElementById('draw-banner').style.display = 'block';
+  document.getElementById('az-info') && (document.getElementById('az-info').textContent = 'Перейди на Карту → натисни місце.');
+  showPage('map', document.querySelector('[data-page=map]'));
+}
+
+// onMapClick — прибрати dblclick логіку для полігону (тепер через кнопку)
+function onMapClick(e) {
+  if (!adminDrawMode) return;
+  const { lat, lng } = e.latlng;
+  if (adminDrawMode === 'anomaly') {
+    const type = document.getElementById('aa-type').value;
+    adminPlaceAnomalyAt(lat, lng, type);
+    adminDrawMode = null;
+    document.getElementById('draw-banner').style.display = 'none';
+    return;
+  }
+  if (adminDrawMode === 'circle') {
+    if (adminDrawPoints.length === 0) {
+      adminDrawPoints.push([lat, lng]);
+      adminCircleMarker = L.marker([lat, lng], {icon: L.divIcon({className:'',html:'<div style="width:10px;height:10px;background:#ff8800;border-radius:50%"></div>',iconSize:[10,10]})}).addTo(leafletMap);
+      document.getElementById('az-info').textContent = 'Натисни ще раз для радіусу кола.';
+    } else {
+      const r = haversine(adminDrawPoints[0][0], adminDrawPoints[0][1], lat, lng);
+      adminConfirmCircleZone(adminDrawPoints[0], r);
+      adminCancelDraw();
+    }
+    return;
+  }
+  if (adminDrawMode === 'polygon') {
+    adminDrawPoints.push([lat, lng]);
+    const m = L.marker([lat, lng], {icon: L.divIcon({className:'',html:'<div style="width:10px;height:10px;background:#ff8800;border-radius:50%"></div>',iconSize:[10,10]})}).addTo(leafletMap);
+    adminPolyMarkers.push(m);
+    if (adminPolyline) leafletMap.removeLayer(adminPolyline);
+    const pts = [...adminDrawPoints, adminDrawPoints[0]];
+    adminPolyline = L.polyline(pts, {color:'#ff8800',dashArray:'5,5',weight:2}).addTo(leafletMap);
+    document.getElementById('az-info').textContent = `${adminDrawPoints.length} точок. Натисни ✅ Зберегти для завершення.`;
+  }
+}
+
+// onMapDblClick — тепер просто preventDefault щоб не зумити
+function onMapDblClick(e) {
+  if (adminDrawMode === 'polygon') {
+    e.originalEvent?.preventDefault();
+  }
+}
+
+async function adminConfirmCircleZone(center,radius){
+  const name=document.getElementById('az-name').value||'Зона';
+  const level=document.getElementById('az-level').value;
+  const {db,collection,addDoc,serverTimestamp}=window._fb;
+  try{
+    const ref=await addDoc(collection(db,'zones'),{name,level,shape:'circle',center,radius,createdAt:serverTimestamp()});
+    state.zones.push({name,level,shape:'circle',center,radius,id:ref.id});
+    const lvl=LEVELS.find(l=>l.id===level);
+    L.circle(center,{radius,color:lvl.color,fillColor:lvl.color,fillOpacity:.18,weight:2,dashArray:'6,4'}).bindPopup(`<b>${name}</b>`).addTo(leafletMap);
+    document.getElementById('az-info').textContent=`✅ Зона "${name}" збережена`;
+    document.getElementById('map-zone-count').textContent=state.zones.length;
+    renderAdminZoneList();
+  }catch(e){document.getElementById('az-info').textContent='Помилка: '+e.message;}
+}
+async function adminConfirmPolygonZone(points){
+  const name=document.getElementById('az-name').value||'Зона';
+  const level=document.getElementById('az-level').value;
+  const {db,collection,addDoc,serverTimestamp}=window._fb;
+  try{
+    const ref=await addDoc(collection(db,'zones'),{name,level,shape:'polygon',latlngs:points,createdAt:serverTimestamp()});
+    state.zones.push({name,level,shape:'polygon',latlngs:points,id:ref.id});
+    const lvl=LEVELS.find(l=>l.id===level);
+    L.polygon(points,{color:lvl.color,fillColor:lvl.color,fillOpacity:.18,weight:2,dashArray:'6,4'}).bindPopup(`<b>${name}</b>`).addTo(leafletMap);
+    document.getElementById('az-info').textContent=`✅ Зона "${name}" збережена`;
+    document.getElementById('map-zone-count').textContent=state.zones.length;
+    renderAdminZoneList();
+  }catch(e){document.getElementById('az-info').textContent='Помилка: '+e.message;}
+}
+function renderAdminZoneList(){
+  const el=document.getElementById('az-list');if(!el)return;
+  el.innerHTML=state.zones.map((z,i)=>{
+    const lvl=LEVELS.find(l=>l.id===z.level)||LEVELS[0];
+    return `<div style="background:var(--bg3);border:1px solid var(--border);padding:5px 8px;display:flex;align-items:center;gap:8px;font-size:10px"><span style="color:${lvl.color}">${lvl.label}</span><span style="flex:1">${z.name}</span><button class="abtn red" onclick="adminDeleteZone('${z.id}',${i})">✕</button></div>`;
+  }).join('');
+}
+async function adminDeleteZone(id,idx){
+  const {db,doc,deleteDoc}=window._fb;
+  try{await deleteDoc(doc(db,'zones',id));state.zones.splice(idx,1);renderAdminZoneList();document.getElementById('az-info').textContent='✅ Зона видалена';}
+  catch(e){document.getElementById('az-info').textContent='Помилка: '+e.message;}
+}
+async function adminPlaceAnomalyAt(lat,lng,type){
+  const {db,collection,addDoc,serverTimestamp}=window._fb;
+  try{
+    const ref=await addDoc(collection(db,'anomalies'),{lat,lng,type,found:false,createdAt:serverTimestamp()});
+    const newA={lat,lng,type,found:false,id:ref.id};anomalies.push(newA);renderAnomalyOnMap(newA);
+    document.getElementById('map-anom-count').textContent=anomalies.filter(a=>!a.found).length;
+  }catch(e){}
+}
+
+// All admin actions now use adminSelectedPlayer (FIX #2)
+
+async function adminTakeItem(){
+  const logEl=document.getElementById('ag-log');
+  if(!adminSelectedPlayer){logEl.textContent='❌ Вибери гравця зі списку';return;}
+  const {db,doc,getDoc,updateDoc}=window._fb;
+  try{
+    const snap=await getDoc(doc(db,'players',adminSelectedPlayer.id));
+    const arts=snap.data()?.artifacts||[];
+    if(!arts.length){logEl.textContent='❌ Немає артефактів';return;}
+    const removed=arts.pop();
+    await updateDoc(doc(db,'players',adminSelectedPlayer.id),{artifacts:arts});
+    logEl.textContent=`✅ Забрано ${removed.icon} ${removed.name}`;
+  }catch(e){logEl.textContent='❌ '+e.message;}
+}
+
+async function adminGiveItem() {
+  const logEl = document.getElementById('ag-log');
+  if (!adminSelectedPlayer) { logEl.textContent = '❌ Вибери гравця зі списку'; return; }
+  const itemId = document.getElementById('ag-item').value;
+  if (!itemId) { logEl.textContent = '❌ Вибери артефакт'; return; }
+  const art = ARTIFACTS.find(a => a.id === itemId);
+  if (!art) { logEl.textContent = '❌ Невідомий артефакт'; return; }
+  const { db, doc, getDoc, updateDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'players', adminSelectedPlayer.id));
+    const arts = snap.data()?.artifacts || [];
+    arts.push({ ...art, foundAt: Date.now() });
+    await updateDoc(doc(db, 'players', adminSelectedPlayer.id), {
+      artifacts: arts,
+      totalArts: (snap.data()?.totalArts || 0) + 1
+    });
+    logEl.textContent = `✅ Видано ${art.icon} ${art.name} → ${adminSelectedPlayer.data.nickname}`;
+  } catch(e) { logEl.textContent = '❌ ' + e.message; }
+}
+
+async function adminGiveGold(sign) {
+  const logEl = document.getElementById('ag-gold-log');
+  if (!adminSelectedPlayer) { logEl.textContent = '❌ Вибери гравця зі списку'; return; }
+  const amt = parseInt(document.getElementById('ag-gold-amt').value);
+  if (isNaN(amt)) { logEl.textContent = '❌ Введи суму'; return; }
+  const { db, doc, getDoc, updateDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'players', adminSelectedPlayer.id));
+    const newGold = Math.max(0, (snap.data()?.gold || 0) + sign * amt);
+    await updateDoc(doc(db, 'players', adminSelectedPlayer.id), { gold: newGold });
+    logEl.textContent = `✅ ${adminSelectedPlayer.data.nickname}: ${sign > 0 ? '+' : '-'}${amt} → ₴${newGold}`;
+  } catch(e) { logEl.textContent = '❌ ' + e.message; }
+}
+
+async function adminOpenCaseFor() {
+  const logEl = document.getElementById('ag-case-log');
+  if (!adminSelectedPlayer) { logEl.textContent = '❌ Вибери гравця зі списку'; return; }
+  const caseId = document.getElementById('ag-case-type').value;
+  const c = CASES.find(x => x.id === caseId);
+  const pool = c.pool.map(id => ARTIFACTS.find(a => a.id === id)).filter(Boolean);
+  const art = pool[Math.floor(Math.random() * pool.length)];
+  const { db, doc, getDoc, updateDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'players', adminSelectedPlayer.id));
+    const arts = snap.data()?.artifacts || [];
+    arts.push({ ...art, foundAt: Date.now() });
+    await updateDoc(doc(db, 'players', adminSelectedPlayer.id), {
+      artifacts: arts,
+      totalArts: (snap.data()?.totalArts || 0) + 1
+    });
+    logEl.textContent = `✅ ${adminSelectedPlayer.data.nickname} отримав ${art.icon} ${art.name} [${art.rarity}]`;
+  } catch(e) { logEl.textContent = '❌ ' + e.message; }
+}
+
+async function adminBan(ban){
+  const logEl=document.getElementById('ab-log');
+  if(!adminSelectedPlayer){logEl.textContent='❌ Вибери гравця зі списку';return;}
+  const reason=document.getElementById('ab-reason').value.trim()||'порушення правил';
+  const {db,doc,updateDoc}=window._fb;
+  try{
+    await updateDoc(doc(db,'players',adminSelectedPlayer.id),{banned:ban,banReason:reason});
+    logEl.textContent=ban?`🚫 ${adminSelectedPlayer.data.nickname} забанено.`:`✅ ${adminSelectedPlayer.data.nickname} розбанено.`;
+  }catch(e){logEl.textContent='❌ '+e.message;}
+}
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function showModal(title,body,btns){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=body;
+  const btnEl=document.getElementById('modal-btns');btnEl.innerHTML='';
+  const list=btns&&btns.length?btns:[{label:'Закрити',cls:'',fn:closeModal}];
+  list.forEach(b=>{const el=document.createElement('button');el.className='mbtn '+(b.cls||'');el.textContent=b.label;el.onclick=b.fn;btnEl.appendChild(el);});
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';}
+document.getElementById('modal').onclick=function(e){if(e.target===this)closeModal();};
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>{p.style.display='none';p.classList.remove('act');});
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('act'));
+  currentPage=name;
+  const pg=document.getElementById('pg-'+name);if(!pg)return;
+  pg.style.display='flex';pg.classList.add('act');
+  if(btn)btn.classList.add('act');
+  if(name==='map'){pg.style.display='flex';setTimeout(()=>{initLeafletMap();leafletMap?.invalidateSize();},80);}
+  if(name==='inv')renderInventory();
+  if(name==='market'){renderMarketSell();document.getElementById('mkt-gold').textContent=state.gold;}
+  if(name==='profile'){updateProfileDisplay();renderAchievements();}
+  if(name==='friends')renderFriends();
+  if(name==='admin')renderAdminZoneList();
+}
+
+// ═══════════════════════════════════════════
+// PASSIVE UPDATE
+// ═══════════════════════════════════════════
+
+function passiveUpdate() {
+  if (currentZone) {
+    const lvl = LEVELS.find(l => l.id === currentZone.level);
+    gainXP(Math.round(lvl.xpMul));
+
+    // Пасивне накопичення дози (за 10с тік)
+    const shield = getEquippedBonusDoseShield();
+    const passiveDose = lvl.basePower * 0.001 * (1 - shield);
+    addDose(passiveDose); // addDose вже знімає HP якщо > DOSE_LIMIT
+
+    // Якщо понад ліміт — безперервне HP-пошкодження ~5 HP/год
+    // 5 HP/год = 5/3600*10 ≈ 0.0139 HP за тік (10с)
+    if (state.dailyDose > DOSE_LIMIT) {
+      const excess = state.dailyDose - DOSE_LIMIT;
+      // Масштаб: 1 мкПт надлишку = 5 HP/год; 50 мкПт = 250 HP/год (летально)
+      const dmgPerTick = (excess / DOSE_LIMIT) * 5 * (10 / 3600);
+      state.hp = Math.max(0, state.hp - dmgPerTick);
+      updateHpDisplay();
+    }
+  }
+  updateStatsDisplay();
+  document.getElementById('map-anom-count').textContent = anomalies.filter(a => !a.found).length;
+  saveState();
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function flash(color){
+  const el=document.getElementById('flash');
+  el.style.background=color+'33';el.style.opacity='1';
+  setTimeout(()=>el.style.opacity='0',150);
+}
+function pointInZone(lat,lng,zone){
+  if(zone.shape==='circle'&&zone.center)return haversine(lat,lng,zone.center[0],zone.center[1])<=zone.radius;
+  if(zone.shape==='polygon'&&zone.latlngs){
+    const lls=zone.latlngs.map(p=>Array.isArray(p)?p:[p.lat,p.lng]);
+    return pointInPolygon([lat,lng],lls);
+  }
+  return false;
+}
+function pointInPolygon(point,poly){
+  let inside=false;
+  const x=point[0],y=point[1];
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+function haversine(la1,ln1,la2,ln2){
+  const R=6371000,dL=(la2-la1)*Math.PI/180,dl=(ln2-ln1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ═══════════════════════════════════════════
+// MAP + FOG OF WAR
+// ═══════════════════════════════════════════
+let fogOverlayEl = null;
+let fogVisitedCells = new Set();
+const HEX_SIZE = 40;
+
+function initLeafletMap() {
+  if (leafletMap) return;
+  const c = userLat ? [userLat, userLng] : [50.45, 30.52];
+  leafletMap = L.map('leafmap', {zoomControl: true}).setView(c, 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OSM', maxZoom:19}).addTo(leafletMap);
+  initFogOverlay();
+  redrawZones();
+  anomalies.filter(a => !a.found).forEach(a => renderAnomalyOnMap(a));
+  if (userLat) mapMarker = L.marker([userLat, userLng], {icon: L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#4488ff;border-radius:50%;border:2px solid #fff;box-shadow:0 0 10px #44f8"></div>', iconSize:[14,14]})}).addTo(leafletMap).bindPopup('Ти тут');
+  leafletMap.on('click', onMapClick);
+  leafletMap.on('dblclick', onMapDblClick);
+  document.getElementById('map-zone-count').textContent = state.zones.length;
+  document.getElementById('map-anom-count').textContent = anomalies.filter(a => !a.found).length;
+  state.fogVisited.forEach(([la, ln]) => {
+    const key = latLngToCell(la, ln);
+    if (key) fogVisitedCells.add(key);
+  });
+}
+
+function latLngToCell(lat, lng) {
+  if (!leafletMap) return null;
+  const pt = leafletMap.latLngToContainerPoint([lat, lng]);
+  const col = Math.round(pt.x / (HEX_SIZE * Math.sqrt(3)));
+  const row = Math.round(pt.y / (HEX_SIZE * 1.5));
+  return `${col},${row}`;
+}
+
+function initFogOverlay() {
+  if (!leafletMap) return;
+  const FogLayer = L.Layer.extend({
+    onAdd: function(map) {
+      this._map = map;
+      const pane = map.getPane('overlayPane');
+      this._canvas = document.createElement('canvas');
+      this._canvas.style.position = 'absolute';
+      this._canvas.style.pointerEvents = 'none';
+      this._canvas.style.zIndex = '400';
+      pane.appendChild(this._canvas);
+      fogOverlayEl = this._canvas;
+      map.on('moveend zoomend resize', () => {
+        fogVisitedCells = new Set();
+        state.fogVisited.forEach(([la, ln]) => {
+          const key = latLngToCell(la, ln);
+          if (key) fogVisitedCells.add(key);
+        });
+        redrawFog();
+      });
+      redrawFog();
+    },
+    onRemove: function() { if (fogOverlayEl) fogOverlayEl.remove(); fogOverlayEl = null; }
+  });
+  new FogLayer().addTo(leafletMap);
+}
+
+function drawHexPath(ctx, cx, cy, size) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 180 * (60 * i - 30);
+    const x = cx + size * Math.cos(angle);
+    const y = cy + size * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function redrawFog() {
+  if (!fogOverlayEl || !leafletMap) return;
+  const mapSize = leafletMap.getSize();
+  const topLeft = leafletMap.containerPointToLayerPoint([0, 0]);
+  L.DomUtil.setPosition(fogOverlayEl, topLeft);
+  fogOverlayEl.width = mapSize.x;
+  fogOverlayEl.height = mapSize.y;
+  const ctx = fogOverlayEl.getContext('2d');
+  ctx.fillStyle = 'rgba(3,7,10,0.88)';
+  ctx.fillRect(0, 0, mapSize.x, mapSize.y);
+  if (!fogVisitedCells.size) return;
+  ctx.globalCompositeOperation = 'destination-out';
+  state.fogVisited.forEach(([la, ln]) => {
+    const pt = leafletMap.latLngToContainerPoint([la, ln]);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,1)';
+    ctx.shadowBlur = HEX_SIZE * 0.4;
+    drawHexPath(ctx, pt.x, pt.y, HEX_SIZE * 0.92);
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fill();
+    ctx.restore();
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = 'rgba(0,255,136,0.06)';
+  ctx.lineWidth = 1;
+  state.fogVisited.forEach(([la, ln]) => {
+    const pt = leafletMap.latLngToContainerPoint([la, ln]);
+    drawHexPath(ctx, pt.x, pt.y, HEX_SIZE * 0.9);
+    ctx.stroke();
+  });
+}
+
+function drawFogReveal(la, ln) {
+  if (!leafletMap) return;
+  const key = latLngToCell(la, ln);
+  if (key) fogVisitedCells.add(key);
+  redrawFog();
+}
+
+function clearFog() {
+  state.fogVisited = [];
+  fogVisitedCells = new Set();
+  redrawFog();
+  saveState();
+}
+
+function redrawZones() {
+  if (!leafletMap) return;
+  state.zones.forEach(z => {
+    const lvl = LEVELS.find(l => l.id === z.level);
+    const color = lvl?.color || '#888';
+    if (z.shape === 'circle' && z.center && z.radius) {
+      L.circle(z.center, {radius: z.radius, color, fillColor: color, fillOpacity: .18, weight: 2, dashArray: '6,4'}).bindPopup(`<b>${z.name}</b><br>${lvl.label}`).addTo(leafletMap);
+    } else if (z.shape === 'polygon' && z.latlngs && z.latlngs.length >= 3) {
+      const lls = z.latlngs.map(p => Array.isArray(p) ? p : [p.lat, p.lng]);
+      L.polygon(lls, {color, fillColor: color, fillOpacity: .18, weight: 2, dashArray: '6,4'}).bindPopup(`<b>${z.name}</b><br>${lvl.label}`).addTo(leafletMap);
+    }
+  });
+}
+
+function renderAnomalyOnMap(a) {
+  if (!leafletMap) return;
+  const art = ARTIFACTS.find(x => x.id === a.type) || ARTIFACTS[0];
+  const m = L.marker([a.lat, a.lng], {icon: L.divIcon({className:'', html:`<div style="font-size:18px;filter:drop-shadow(0 0 5px #ffe633)">${art.icon}</div>`, iconSize:[22,22]})}).bindPopup(`<b>${art.name}</b><br>Аномалія`).addTo(leafletMap);
+  a._marker = m;
+}
+
+function centerMap() {
+  if (!userLat) { showModal('GPS', 'GPS не визначено', [{label:'Ок',cls:'',fn:closeModal}]); return; }
+  leafletMap?.setView([userLat, userLng], 16);
+}
+
+function renderAll(){
+  renderInventory();updateStatsDisplay();updateHpDisplay();updateDoseDisplay();
+  updateProfileDisplay();renderAchievements();renderStreakBar();
+}
+</script>
+</body>
+</html>
